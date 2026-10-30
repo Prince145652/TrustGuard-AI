@@ -1,0 +1,140 @@
+import { RecentSecurityActivity, SecurityStats, NearNetwork, RecentAudit } from "@/types/security";
+
+export const SAMPLE_SECURITY_STATS: SecurityStats = {
+  totalScans: 12480,
+  threatsDetected: 842,
+  protectedWallets: 5910,
+  securityScore: 98.4,
+  isSampleData: true,
+};
+
+export const INITIAL_STATS = SAMPLE_SECURITY_STATS;
+
+export const NETWORKS: { id: NearNetwork; label: string; badge: string; color: string }[] = [
+  { id: "NEAR Mainnet", label: "NEAR Mainnet", badge: "Live RPC", color: "emerald" },
+  { id: "NEAR Testnet", label: "NEAR Testnet", badge: "Test Environment", color: "cyan" },
+  { id: "Aurora Engine", label: "Aurora EVM", badge: "Rainbow Bridge", color: "purple" },
+];
+
+export const SAMPLE_RECENT_ACTIVITIES: RecentSecurityActivity[] = [
+  {
+    id: "act-01",
+    target: "aurora.near",
+    scanType: "Wallet Scanner",
+    riskLevel: "SAFE",
+    date: "Today, 15:42",
+    status: "Verified On-Chain",
+    nearTxHash: "G52k1qHn8m7A3tLwP9v4J8zD2K1mN4xQ8rY7bT6cV5wX",
+    isSample: true,
+  },
+  {
+    id: "act-02",
+    target: "https://claim-free-near-gift.xyz",
+    scanType: "Website Scanner",
+    riskLevel: "CRITICAL",
+    date: "Today, 14:15",
+    status: "Threat Blocked",
+    nearTxHash: "3mK9v8Z7xY4wT2rQ1pL5jH8nC6bV4dX2zM9kP7tL3wR",
+    isSample: true,
+  },
+  {
+    id: "act-03",
+    target: "token.sweat",
+    scanType: "Token Scanner",
+    riskLevel: "SAFE",
+    date: "Today, 13:20",
+    status: "Safe",
+    nearTxHash: "9xP4wT2rQ1pL5jH8nC6bV4dX2zM9kP7tL3wR8yZ7xY4",
+    isSample: true,
+  },
+  {
+    id: "act-04",
+    target: "drainer-multicall.near",
+    scanType: "Wallet Scanner",
+    riskLevel: "HIGH",
+    date: "Today, 11:08",
+    status: "High Risk",
+    isSample: true,
+  },
+  {
+    id: "act-05",
+    target: "https://app.ref.finance",
+    scanType: "Website Scanner",
+    riskLevel: "SAFE",
+    date: "Today, 09:30",
+    status: "Safe",
+    nearTxHash: "2bV4dX2zM9kP7tL3wR8yZ7xY4wT2rQ1pL5jH8nC6mK9",
+    isSample: true,
+  },
+  {
+    id: "act-06",
+    target: "honeypot-moon-token.near",
+    scanType: "Token Scanner",
+    riskLevel: "CRITICAL",
+    date: "Yesterday, 22:14",
+    status: "Threat Blocked",
+    isSample: true,
+  },
+  {
+    id: "act-07",
+    target: "wrap.near",
+    scanType: "Token Scanner",
+    riskLevel: "SAFE",
+    date: "Yesterday, 19:40",
+    status: "Verified On-Chain",
+    nearTxHash: "7xY4wT2rQ1pL5jH8nC6bV4dX2zM9kP7tL3wR8yZ7mK9",
+    isSample: true,
+  },
+];
+
+export const RECENT_AUDITS: RecentAudit[] = [
+  {
+    id: "aud-001",
+    target: "ref-finance.near",
+    type: "contract",
+    riskLevel: "SAFE",
+    riskScore: 6,
+    nearTxHash: "G52k1qHn8m7A3tLwP9v4J8zD2K1mN4xQ8rY7bT6cV5wX",
+    timestamp: "2 mins ago",
+    status: "VERIFIED_ON_NEAR",
+  },
+  {
+    id: "aud-002",
+    target: "claim-free-near-rewards.app",
+    type: "phishing",
+    riskLevel: "CRITICAL",
+    riskScore: 96,
+    nearTxHash: "3mK9v8Z7xY4wT2rQ1pL5jH8nC6bV4dX2zM9kP7tL3wR",
+    timestamp: "12 mins ago",
+    status: "VERIFIED_ON_NEAR",
+  },
+  {
+    id: "aud-003",
+    target: "token.sweat",
+    type: "token",
+    riskLevel: "SAFE",
+    riskScore: 11,
+    nearTxHash: "9xP4wT2rQ1pL5jH8nC6bV4dX2zM9kP7tL3wR8yZ7xY4",
+    timestamp: "28 mins ago",
+    status: "VERIFIED_ON_NEAR",
+  },
+  {
+    id: "aud-004",
+    target: "0x498a...92b1 (Drainer Router)",
+    type: "wallet",
+    riskLevel: "HIGH",
+    riskScore: 82,
+    timestamp: "45 mins ago",
+    status: "OFF_CHAIN_ONLY",
+  },
+  {
+    id: "aud-005",
+    target: "aurora.near",
+    type: "contract",
+    riskLevel: "SAFE",
+    riskScore: 4,
+    nearTxHash: "2bV4dX2zM9kP7tL3wR8yZ7xY4wT2rQ1pL5jH8nC6mK9",
+    timestamp: "1 hour ago",
+    status: "VERIFIED_ON_NEAR",
+  },
+];
