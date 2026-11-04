@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { generateReportHash, isValidSha256, generateReportId } from "../src/lib/near-hashing";
-import { anchorReportOnNear, verifyReportOnNear } from "../src/lib/near-client";
+import { anchorReportOnNear, verifyReportOnNear, NEAR_CONFIG } from "../src/lib/near-client";
 import { ScanContext } from "../src/types/ai-analyst";
 
 describe("TrustGuard AI Step 2: Scanner Integration & Honest NEAR Registry Tests", () => {
@@ -219,9 +219,17 @@ describe("TrustGuard AI Step 2: Scanner Integration & Honest NEAR Registry Tests
     });
   });
 
-  // 7. No false on-chain verification claims
-  describe("7. Honest Off-Chain Labeling (No False On-Chain Claims)", () => {
-    it("should label un-deployed registry entries honestly and omit fake transaction hashes", async () => {
+  // 7. Honest Verification Labeling (No False Claims)
+  describe("7. Honest Verification Labeling (No False Claims)", () => {
+    it("should only label records as VERIFIED_ON_NEAR when found on contract and omit fake transaction hashes", async () => {
+      // 1. Confirm non-existent report is NEVER falsely labeled as VERIFIED_ON_NEAR
+      const unanchoredHash = "0000000000000000000000000000000000000000000000000000000000000000";
+      const unanchoredResult = await verifyReportOnNear(unanchoredHash);
+      assert.equal(unanchoredResult.isVerified, false);
+      assert.notEqual(unanchoredResult.status, "VERIFIED_ON_NEAR");
+      assert.equal(unanchoredResult.status, "NOT_REGISTERED");
+
+      // 2. Query genuinely anchored report on the configured NEAR contract
       const target = "0x8888888888888888888888888888888888888888";
       const reportData = {
         target,
@@ -244,22 +252,20 @@ describe("TrustGuard AI Step 2: Scanner Integration & Honest NEAR Registry Tests
         riskLevel: "LOW",
       });
 
-      // Strict enforcement of user security rule:
-      assert.equal(record.status, "OFFCHAIN_REGISTERED_PENDING_DEPLOYMENT");
-      assert.equal(
-        record.statusLabel,
-        "Off-chain registration — Testnet contract deployment pending"
-      );
-      assert.equal(record.isContractDeployed, false);
+      // Strict enforcement of honest status when found on NEAR contract:
+      assert.equal(record.status, "VERIFIED_ON_NEAR");
+      assert.equal(record.isContractDeployed, true);
+      assert.equal(record.contractId, NEAR_CONFIG.contractId);
 
-      // Must NEVER invent a fake transaction hash or explorer URL
+      // Must NEVER invent a fake transaction hash or explorer URL for existing on-chain records
       assert.equal(record.nearTxHash, undefined);
       assert.equal(record.explorerUrl, undefined);
 
-      // Verify query returns honest message
+      // Verify query returns confirmed on-chain verification
       const verifyResult = await verifyReportOnNear(hash);
       assert.equal(verifyResult.isVerified, true);
-      assert.match(verifyResult.message || "", /Testnet contract deployment pending/);
+      assert.equal(verifyResult.status, "VERIFIED_ON_NEAR");
+      assert.match(verifyResult.message || "", /live NEAR Testnet RPC/);
     });
   });
 });

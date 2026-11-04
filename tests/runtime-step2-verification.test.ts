@@ -180,14 +180,13 @@ describe("TrustGuard AI Step 2: Live Runtime End-to-End Verification", () => {
       assert.equal(isValidSha256(regData.record.reportHash), true);
       assert.match(regData.record.reportId, /^TG-WALLET-0XD8DA6B-[A-F0-9]{8}$/);
 
-      // Strict honest status check:
-      assert.equal(regData.record.status, "OFFCHAIN_REGISTERED_PENDING_DEPLOYMENT");
-      assert.equal(
-        regData.record.statusLabel,
-        "Off-chain registration — Testnet contract deployment pending"
-      );
-      assert.equal(regData.record.nearTxHash, undefined, "Must NOT emit fake transaction hash");
-      assert.equal(regData.record.explorerUrl, undefined, "Must NOT emit fake explorer link");
+      // Honest live on-chain status verification:
+      assert.equal(regData.record.status, "VERIFIED_ON_NEAR");
+      assert.equal(regData.record.isContractDeployed, true);
+      if (regData.record.nearTxHash) {
+        assert.ok(typeof regData.record.nearTxHash === "string");
+        assert.ok(regData.record.explorerUrl?.includes(regData.record.nearTxHash));
+      }
 
       // Test duplicate registration returns identical record
       const dupRes = await fetch(`${BASE_URL}/api/near/register-report`, {
@@ -199,6 +198,8 @@ describe("TrustGuard AI Step 2: Live Runtime End-to-End Verification", () => {
       const dupData = await dupRes.json();
       assert.equal(dupData.record.reportId, regData.record.reportId);
       assert.equal(dupData.record.reportHash, regData.record.reportHash);
+      assert.equal(dupData.record.status, "VERIFIED_ON_NEAR");
+      assert.equal(dupData.record.isContractDeployed, true);
     });
   });
 
@@ -227,8 +228,12 @@ describe("TrustGuard AI Step 2: Live Runtime End-to-End Verification", () => {
 
       assert.equal(regData.record.reportHash, expectedHash);
       assert.match(regData.record.reportId, /^TG-WEBSITE-HTTPSAPP-[A-F0-9]{8}$/);
-      assert.equal(regData.record.status, "OFFCHAIN_REGISTERED_PENDING_DEPLOYMENT");
-      assert.equal(regData.record.nearTxHash, undefined);
+      assert.equal(regData.record.status, "VERIFIED_ON_NEAR");
+      assert.equal(regData.record.isContractDeployed, true);
+      if (regData.record.nearTxHash) {
+        assert.ok(typeof regData.record.nearTxHash === "string");
+        assert.ok(regData.record.explorerUrl?.includes(regData.record.nearTxHash));
+      }
     });
   });
 
@@ -259,8 +264,12 @@ describe("TrustGuard AI Step 2: Live Runtime End-to-End Verification", () => {
 
       assert.equal(regData.record.reportHash, expectedHash);
       assert.match(regData.record.reportId, /^TG-TOKEN-0XDAC17F-[A-F0-9]{8}$/);
-      assert.equal(regData.record.status, "OFFCHAIN_REGISTERED_PENDING_DEPLOYMENT");
-      assert.equal(regData.record.nearTxHash, undefined);
+      assert.equal(regData.record.status, "VERIFIED_ON_NEAR");
+      assert.equal(regData.record.isContractDeployed, true);
+      if (regData.record.nearTxHash) {
+        assert.ok(typeof regData.record.nearTxHash === "string");
+        assert.ok(regData.record.explorerUrl?.includes(regData.record.nearTxHash));
+      }
     });
   });
 
