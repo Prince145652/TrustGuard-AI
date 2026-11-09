@@ -184,9 +184,17 @@ export function ScannerActionButtons({
             </div>
 
             {/* HONEST STATUS LABEL */}
-            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300">
+            <span
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold border ${
+                registrationRecord.status === "VERIFIED_ON_NEAR"
+                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                  : "bg-amber-500/15 border-amber-500/30 text-amber-300"
+              }`}
+            >
               {registrationRecord.statusLabel ||
-                "Off-chain registration — Testnet contract deployment pending"}
+                (registrationRecord.status === "VERIFIED_ON_NEAR"
+                  ? "Verified live on NEAR Testnet"
+                  : "Off-chain registration — Testnet contract deployment pending")}
             </span>
           </div>
 
@@ -248,10 +256,21 @@ export function ScannerActionButtons({
           {/* Honest Explanation & Conditional Explorer Link */}
           <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-slate-400">
             <div className="flex items-start space-x-1.5">
-              <Layers className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
-              <span>
-                Report registered off-chain in TrustGuard ledger. On-chain transaction broadcast will activate once NEAR Testnet contract deployment is finalized.
-              </span>
+              {registrationRecord.status === "VERIFIED_ON_NEAR" ? (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span className="text-slate-300">
+                    Cryptographically anchored and verified on NEAR Testnet via contract {registrationRecord.contractId}.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Layers className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                  <span>
+                    Report registered off-chain in TrustGuard ledger. On-chain transaction broadcast will activate once NEAR Testnet contract deployment is finalized.
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Only show explorer link if an actual transaction hash exists */}

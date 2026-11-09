@@ -76,6 +76,16 @@ export function EvidenceFirstVerdict({
         </span>
       </div>
 
+      {/* Judge-Friendly Proof Summary (Real on-chain verification only) */}
+      {isAnchored && nearRecord && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-mono text-emerald-300">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-semibold">
+            Evidence-backed analysis • Cryptographically anchored on NEAR
+          </span>
+        </div>
+      )}
+
       {/* Risk & Confidence */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className={`rounded-lg border p-3 ${risk.badge}`}>

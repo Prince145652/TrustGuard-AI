@@ -40,6 +40,21 @@ function createChatMessage(
   };
 }
 
+function formatEngineLabel(engineUsed?: string): { name: string; isGemini: boolean } {
+  if (!engineUsed) return { name: "Security Analyst", isGemini: false };
+  if (engineUsed === "gemini-2.5-flash" || engineUsed.startsWith("gemini")) {
+    return { name: `Gemini (${engineUsed})`, isGemini: true };
+  }
+  if (
+    engineUsed === "autonomous-local-heuristics" ||
+    engineUsed.includes("heuristics") ||
+    engineUsed.includes("deterministic")
+  ) {
+    return { name: "Deterministic Security Analysis", isGemini: false };
+  }
+  return { name: engineUsed, isGemini: false };
+}
+
 function renderInlineMarkdown(text: string): React.ReactNode {
   const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
   return parts.map((part, i) => {
@@ -228,13 +243,12 @@ export function AiSecurityAnalyst({ initialContext }: AiSecurityAnalystProps = {
     {
       id: "msg-welcome",
       sender: "analyst",
-      content: `Hello! I am your **TrustGuard AI Security Analyst**, powered by real-time blockchain heuristics and Gemini neural models.
+      content: `Hello! I am your **TrustGuard AI Security Analyst**, powered by real-time blockchain heuristics and multi-layer neural security models.
 
 I can explain why a target is flagged, interpret smart contract bytecode, and provide step-by-step risk mitigation strategies. 
 
 Select a context preset above or ask any Web3 security question below!`,
       timestamp: "Just now",
-      engineUsed: "gemini-2.5-flash",
     },
   ]);
 
@@ -321,7 +335,7 @@ Select a context preset above or ask any Web3 security question below!`,
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">
-                Gemini 2.5 Security Reasoner
+                AI Security Reasoner
               </span>
               <span className="text-slate-600">•</span>
               <span className="text-xs font-mono text-emerald-400">
@@ -449,7 +463,7 @@ Select a context preset above or ask any Web3 security question below!`,
 
         {/* Quick Question Chips */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-mono text-slate-500">Ask Gemini:</span>
+          <span className="text-[11px] font-mono text-slate-500">Quick Analysis Queries:</span>
           {[
             "Why is this wallet risky?",
             "Is this token suspicious?",
@@ -489,15 +503,20 @@ Select a context preset above or ask any Web3 security question below!`,
                 }`}
               >
                 {/* Engine Badge */}
-                {msg.engineUsed && (
-                  <div className="flex items-center justify-between text-[10px] font-mono pb-1 border-b border-slate-800/80 text-slate-400">
-                    <span className="flex items-center space-x-1">
-                      <Sparkles className="w-3 h-3 text-cyan-400" />
-                      <span>TrustGuard Analyst ({msg.engineUsed})</span>
-                    </span>
-                    <span>{msg.timestamp}</span>
-                  </div>
-                )}
+                {msg.engineUsed && (() => {
+                  const engine = formatEngineLabel(msg.engineUsed);
+                  return (
+                    <div className="flex items-center justify-between text-[10px] font-mono pb-1 border-b border-slate-800/80 text-slate-400">
+                      <span className="flex items-center space-x-1.5">
+                        <Sparkles
+                          className={`w-3 h-3 ${engine.isGemini ? "text-cyan-400" : "text-emerald-400"}`}
+                        />
+                        <span className="text-slate-300 font-medium">{engine.name}</span>
+                      </span>
+                      <span>{msg.timestamp}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* 1. Evidence-First Security Verdict (Renders BEFORE detailed explanation) */}
                 {msg.structuredReport && (
@@ -525,7 +544,7 @@ Select a context preset above or ask any Web3 security question below!`,
               </div>
               <div className="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 text-xs font-mono text-cyan-300 flex items-center space-x-2">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Gemini is evaluating on-chain evidence &amp; threat telemetry...</span>
+                <span>Evaluating on-chain evidence &amp; threat telemetry...</span>
               </div>
             </div>
           )}
