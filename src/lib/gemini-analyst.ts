@@ -117,6 +117,7 @@ function generateDeterministicAnalysis(
     analysisTimestamp: now,
     uncertaintyNotes:
       "This analysis is strictly based on public on-chain heuristics and threat registries. Absence of detection does not guarantee absolute safety.",
+    nearRecord: context?.nearRecord,
   };
 
   // Generate language-specific narrative

@@ -72,6 +72,7 @@ export function ScannerActionButtons({
       threats: report.threats,
       evidence: report.evidence,
       indicators: report.indicators,
+      nearRecord: registrationRecord || undefined,
     };
 
     onAnalyzeWithAi(context);

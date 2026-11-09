@@ -18,6 +18,7 @@ import {
   AnalystLanguage,
 } from "@/types/ai-analyst";
 import { looksLikeSecret } from "@/lib/validators";
+import { EvidenceFirstVerdict } from "../EvidenceFirstVerdict";
 
 // Sequential message generator outside component render lifecycle
 let messageSequence = 0;
@@ -37,6 +38,97 @@ function createChatMessage(
     timestamp: timeString,
     ...extra,
   };
+}
+
+function renderInlineMarkdown(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-bold text-slate-100">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code
+          key={i}
+          className="px-1 py-0.5 rounded bg-slate-900 text-cyan-300 font-mono text-[11px] border border-slate-800"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
+function renderFormattedMarkdown(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  let listCounter = 0;
+
+  return lines.map((line, idx) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      listCounter = 0;
+      return <div key={idx} className="h-1.5" />;
+    }
+    // Specific heading checks: #### before ###
+    if (trimmed.startsWith("#### ")) {
+      listCounter = 0;
+      return (
+        <h4 key={idx} className="text-xs font-bold text-slate-200 mt-2.5 mb-1 flex items-center gap-1.5">
+          {renderInlineMarkdown(trimmed.replace("#### ", ""))}
+        </h4>
+      );
+    }
+    if (trimmed.startsWith("### ")) {
+      listCounter = 0;
+      return (
+        <h3 key={idx} className="text-sm font-bold text-cyan-300 mt-3 mb-1.5 flex items-center gap-1.5">
+          {renderInlineMarkdown(trimmed.replace("### ", ""))}
+        </h3>
+      );
+    }
+    if (trimmed.startsWith("> ")) {
+      listCounter = 0;
+      return (
+        <blockquote key={idx} className="border-l-2 border-cyan-500/50 pl-2.5 py-1 text-slate-400 italic text-[11px] bg-slate-900/40 rounded-r my-1.5">
+          {renderInlineMarkdown(trimmed.replace("> ", ""))}
+        </blockquote>
+      );
+    }
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      listCounter = 0;
+      return (
+        <div key={idx} className="flex items-start gap-1.5 pl-1 text-slate-300 text-xs my-0.5">
+          <span className="text-cyan-400 mt-0.5 select-none">•</span>
+          <span>{renderInlineMarkdown(trimmed.substring(2))}</span>
+        </div>
+      );
+    }
+    if (/^\d+\.\s/.test(trimmed)) {
+      const numMatch = trimmed.match(/^(\d+)\.\s(.*)$/);
+      if (numMatch) {
+        listCounter += 1;
+        return (
+          <div key={idx} className="flex items-start gap-1.5 pl-1 text-slate-300 text-xs my-0.5">
+            <span className="text-emerald-400 font-mono text-[11px] font-bold mt-0.5 select-none">
+              {listCounter}.
+            </span>
+            <span>{renderInlineMarkdown(numMatch[2])}</span>
+          </div>
+        );
+      }
+    }
+    listCounter = 0;
+    return (
+      <p key={idx} className="text-xs text-slate-300 leading-relaxed my-0.5">
+        {renderInlineMarkdown(trimmed)}
+      </p>
+    );
+  });
 }
 
 // Presets for instant context loading
@@ -407,51 +499,15 @@ Select a context preset above or ask any Web3 security question below!`,
                   </div>
                 )}
 
-                {/* Markdown text */}
-                <div className="whitespace-pre-line prose-invert text-xs sm:text-sm font-sans space-y-2">
-                  {msg.content}
-                </div>
-
-                {/* Structured Security Report Preview if attached */}
+                {/* 1. Evidence-First Security Verdict (Renders BEFORE detailed explanation) */}
                 {msg.structuredReport && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs font-mono">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                      <span className="text-[10px] font-bold text-cyan-400 uppercase">
-                        Audited Report Card
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          msg.structuredReport.riskScore >= 75
-                            ? "bg-rose-500/20 text-rose-300"
-                            : "bg-emerald-500/20 text-emerald-300"
-                        }`}
-                      >
-                        {msg.structuredReport.riskScore}/100 • {msg.structuredReport.riskLevel}
-                      </span>
-                    </div>
-
-                    <div className="text-[11px] text-slate-300">
-                      <strong>Target:</strong> {msg.structuredReport.target}
-                    </div>
-
-                    {msg.structuredReport.detectedThreats.length > 0 && (
-                      <div className="space-y-1">
-                        <span className="text-rose-400 font-bold text-[10px] uppercase">
-                          Detected Threats:
-                        </span>
-                        <ul className="list-disc pl-4 space-y-0.5 text-rose-300 text-[11px]">
-                          {msg.structuredReport.detectedThreats.map((t, i) => (
-                            <li key={i}>{t}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    <div className="text-[10px] text-slate-500 pt-1">
-                      Timestamp: {msg.structuredReport.analysisTimestamp}
-                    </div>
-                  </div>
+                  <EvidenceFirstVerdict report={msg.structuredReport} />
                 )}
+
+                {/* 2. Formatted Markdown Detailed AI Response */}
+                <div className="prose-invert text-xs sm:text-sm font-sans space-y-1 pt-1">
+                  {renderFormattedMarkdown(msg.content)}
+                </div>
               </div>
 
               {msg.sender === "user" && (

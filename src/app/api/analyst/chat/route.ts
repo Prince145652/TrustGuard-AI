@@ -3,6 +3,38 @@ import { z } from "zod";
 import { looksLikeSecret } from "@/lib/validators";
 import { analyzeWithGemini } from "@/lib/gemini-analyst";
 
+const nearVerificationRecordSchema = z.object({
+  reportId: z.string(),
+  reportHash: z.string(),
+  target: z.string(),
+  scanType: z.enum(["WALLET", "WEBSITE", "TOKEN"]),
+  riskScore: z.number(),
+  riskLevel: z.string(),
+  contractId: z.string(),
+  network: z.enum(["NEAR Testnet", "NEAR Mainnet"]),
+  nearTxHash: z.string().optional(),
+  blockHeight: z.number(),
+  anchoredAt: z.string(),
+  status: z.enum([
+    "VERIFIED_ON_NEAR",
+    "OFFCHAIN_REGISTERED_PENDING_DEPLOYMENT",
+    "PENDING_FINALITY",
+    "HASH_MISMATCH",
+    "NOT_REGISTERED",
+  ]),
+  statusLabel: z.string().optional(),
+  isContractDeployed: z.boolean().optional(),
+  explorerUrl: z.string().optional(),
+  metadata: z
+    .object({
+      totalFindings: z.number(),
+      sealedBy: z.string(),
+      canonicalJsonSchemaVersion: z.string(),
+      note: z.string().optional(),
+    })
+    .optional(),
+});
+
 const analystRequestSchema = z.object({
   message: z.string().trim().min(1, "Message cannot be empty"),
   language: z.enum(["en", "hi", "hinglish"]).default("en"),
@@ -34,6 +66,7 @@ const analystRequestSchema = z.object({
           })
         )
         .optional(),
+      nearRecord: nearVerificationRecordSchema.optional(),
     })
     .optional(),
   history: z

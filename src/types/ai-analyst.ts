@@ -1,3 +1,5 @@
+import { NearVerificationRecord } from "@/types/near-verification";
+
 export type AnalystLanguage = "en" | "hi" | "hinglish";
 
 export interface ScanContext {
@@ -19,6 +21,7 @@ export interface ScanContext {
     severity?: string;
     whySuspicious?: string;
   }>;
+  nearRecord?: NearVerificationRecord;
 }
 
 export interface ChatMessage {
@@ -41,6 +44,7 @@ export interface StructuredSecurityReport {
   recommendedActions: string[];
   analysisTimestamp: string;
   uncertaintyNotes?: string;
+  nearRecord?: NearVerificationRecord;
 }
 
 export interface AnalystApiResponse {
