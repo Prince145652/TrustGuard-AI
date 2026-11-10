@@ -164,7 +164,7 @@ export function RecentActivityTable() {
                   <td className="py-3 text-right">
                     {activity.nearTxHash ? (
                       <a
-                        href={`https://explorer.near.org/transactions/${activity.nearTxHash}`}
+                        href={`https://testnet.nearblocks.io/txns/${activity.nearTxHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 text-[11px] hover:underline"

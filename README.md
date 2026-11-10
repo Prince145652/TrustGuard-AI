@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TrustGuard AI
 
-## Getting Started
+> **Decentralized Threat Intelligence & Tamper-Evident Security Registry on NEAR Protocol**
 
-First, run the development server:
+TrustGuard AI is a Web3 security and threat-analysis platform that audits smart contracts, wallets, token contracts, and dApp websites, generating canonical cryptographic hashes anchored to the NEAR blockchain.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Live NEAR Testnet Contract:** [`tg-auditor-2026.testnet`](https://testnet.nearblocks.io/address/tg-auditor-2026.testnet)
+- **Active Network:** NEAR Protocol (Testnet)
+- **AI Engine:** Google Gemini 2.5 Flash (`@google/genai`) with Deterministic Rule-Based Fallback
+
+---
+
+## Key Capabilities
+
+### 1. Multi-Vector Threat Scanners
+- **EVM & Account Scanner:** Evaluates addresses for code execution capabilities, balance thresholds, and account anomalies using public RPC infrastructure.
+- **Website & Phishing Detector:** Inspects dApp domains, URLs, and redirect patterns for punycode exploits, lookalike typosquatting, and known phishing threats.
+- **Token Security Scanner:** Audits NEP-141 and token contracts for transfer tax traps, blacklist/freeze functions, and minting privileges.
+
+### 2. AI Security Analyst (Hybrid Engine)
+- Grounded in evidence produced by the threat scanners (target, score, category findings).
+- Powered by **Google Gemini 2.5 Flash** for deep threat assessment and plain-English risk breakdowns.
+- **Deterministic Fallback:** If `GEMINI_API_KEY` is not configured or API limits are encountered, TrustGuard seamlessly falls back to a deterministic, rule-based heuristics engine without interrupting the audit workflow.
+
+### 3. Client-Side Secret Shield (Zero Key Custody)
+- Pre-flight input validation actively screens for raw private keys (EVM 64-hex, NEAR ed25519) and BIP-39 mnemonic seed phrases (12/24 words).
+- Detected secrets are blocked on the client side and never transmitted, logged, or stored.
+- *Note:* TrustGuard implements strict client-side secret isolation; it does not utilize Zero-Knowledge (ZK) cryptographic proofs.
+
+### 4. Canonical Cryptographic Hashing
+- Security reports are sanitized of ephemeral UI timestamps.
+- JSON keys are recursively sorted in lexicographical order to eliminate serialization variance.
+- A deterministic SHA-256 digest is generated (`report_hash`), creating an immutable digital fingerprint of the audit evidence.
+
+### 5. NEAR On-Chain Verification Registry
+- Audit hashes are registered directly to the smart contract [`tg-auditor-2026.testnet`](https://testnet.nearblocks.io/address/tg-auditor-2026.testnet) on NEAR Testnet.
+- Any party can independently verify whether an audit report matches the immutable hash recorded on the NEAR blockchain.
+
+---
+
+## Architecture Flow
+
+```mermaid
+flowchart TD
+    Target["Target (Address, Domain, Token)"] --> Shield["Client-Side Secret Shield\n(Detects & blocks private keys/seed phrases)"]
+    Shield --> Scanners["Security Scanners\n(EVM RPC, Web Threat Intel, Token Intel)"]
+    Scanners --> Evidence["Structured Evidence\n(Risk score, indicators, findings)"]
+    Evidence --> Analyst["AI Security Analyst\n(Gemini 2.5 Flash / Deterministic Fallback)"]
+    Analyst --> Hasher["Canonical JSON Normalizer & SHA-256 Engine\n(Lexicographical key sorting)"]
+    Hasher --> Contract["NEAR Smart Contract\ntg-auditor-2026.testnet\n(register_report / get_report)"]
+    Contract --> NearBlocks["NearBlocks Testnet Explorer\n(Tamper-evident verification)"]
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Truth-in-Advertising: Implemented Features vs Fallbacks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Feature | Implemented Architecture | Current Behavior / Limitations |
+| :--- | :--- | :--- |
+| **NEAR Blockchain** | Live smart contract deployed on NEAR Testnet (`tg-auditor-2026.testnet`) | Operates on NEAR Testnet; Mainnet deployment is future roadmap |
+| **AI Threat Analysis** | Google Gemini 2.5 Flash with scanner context grounding | Automatically falls back to deterministic rule engine when offline or no API key |
+| **Secret Protection** | Client-side regex & heuristic pattern rejection (Zero Key Custody) | Rejects private keys before submission; does not use Zero-Knowledge proofs |
+| **Overview Quick Scans** | Instant heuristic preview with structured scoring | Shows quick off-chain preview; full on-chain anchoring happens in NEAR Auditor |
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Quickstart
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Prerequisites
+- Node.js 18+
+- npm
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Installation
+```bash
+git clone <repository-url>
+cd agy-demo
+npm install
+```
 
-## Deploy on Vercel
+### Environment Configuration
+Create a `.env.local` file in the root directory:
+```bash
+# NEAR Protocol Configuration
+NEXT_PUBLIC_NEAR_CONTRACT_ID="tg-auditor-2026.testnet"
+NEXT_PUBLIC_NEAR_NETWORK="testnet"
+NEAR_NODE_URL="https://rpc.testnet.near.org"
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Optional: Gemini API Key for dynamic AI Security Analyst
+# If omitted, TrustGuard automatically uses the deterministic heuristic engine
+GEMINI_API_KEY=""
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Running Locally
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## Verification & Testing
+
+### 1. Standalone Unit & Integration Suite
+Runs 23 automated tests verifying canonical JSON serialization, avalanche effect, hash validation, address checks, secret protection, and NEAR testnet contract query handling without requiring a server:
+```bash
+npm test
+```
+
+### 2. Live Runtime End-to-End Tests
+Executes full HTTP endpoint integration tests against a running Next.js instance:
+```bash
+# In terminal 1:
+npm run dev
+
+# In terminal 2:
+npm run test:e2e
+```
+
+### 3. Type Checking & Production Build
+```bash
+npx tsc --noEmit
+npm run build
+```
+
+---
+
+## Smart Contract Reference
+
+- **Account:** [`tg-auditor-2026.testnet`](https://testnet.nearblocks.io/address/tg-auditor-2026.testnet)
+- **Network:** NEAR Testnet
+- **Key Methods:**
+  - `register_report({ report_hash, target, risk_score, risk_level })`
+  - `get_report({ report_hash })`

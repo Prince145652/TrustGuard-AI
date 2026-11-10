@@ -259,8 +259,7 @@ export function ScannerCards() {
           ? `High risk threat detected on ${rawInput}. Do not sign approvals.`
           : `Clean audit: ${rawInput} meets standard security guidelines.`,
         factors,
-        verifiedOnNear: !isSuspicious,
-        nearTxHash: !isSuspicious ? "4kX9v8Z7xY4wT2rQ1pL5jH8nC6bV4dX2zM9kP7tL3wR8" : undefined,
+        verifiedOnNear: false,
       },
     }));
   };
@@ -364,6 +363,10 @@ export function ScannerCards() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">{walletState.result.summary}</p>
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 text-[10px] font-mono text-slate-500">
+                  <span className="text-amber-400/90 font-medium">Heuristic Preview</span>
+                  <span>Not verified on-chain</span>
+                </div>
               </div>
             )}
           </div>
@@ -453,6 +456,10 @@ export function ScannerCards() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">{websiteState.result.summary}</p>
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 text-[10px] font-mono text-slate-500">
+                  <span className="text-amber-400/90 font-medium">Heuristic Preview</span>
+                  <span>Not verified on-chain</span>
+                </div>
               </div>
             )}
           </div>
@@ -542,6 +549,10 @@ export function ScannerCards() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">{tokenState.result.summary}</p>
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 text-[10px] font-mono text-slate-500">
+                  <span className="text-amber-400/90 font-medium">Heuristic Preview</span>
+                  <span>Not verified on-chain</span>
+                </div>
               </div>
             )}
           </div>

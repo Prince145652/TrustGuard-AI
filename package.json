@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/**/*.test.ts"
+    "test": "tsx --test tests/scanner-integration.test.ts tests/security-verification.test.ts",
+    "test:e2e": "tsx --test tests/runtime-step2-verification.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",
