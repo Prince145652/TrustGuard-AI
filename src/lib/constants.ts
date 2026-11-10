@@ -10,6 +10,9 @@ export const SAMPLE_SECURITY_STATS: SecurityStats = {
 
 export const INITIAL_STATS = SAMPLE_SECURITY_STATS;
 
+export const NEAR_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID || "tg-auditor-2026.testnet";
+
 export const NETWORKS: { id: NearNetwork; label: string; badge: string; color: string }[] = [
   { id: "NEAR Mainnet", label: "NEAR Mainnet", badge: "Live RPC", color: "emerald" },
   { id: "NEAR Testnet", label: "NEAR Testnet", badge: "Test Environment", color: "cyan" },

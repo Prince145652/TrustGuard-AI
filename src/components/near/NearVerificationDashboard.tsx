@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { NearVerificationRecord } from "@/types/near-verification";
 import { formatAddress } from "@/lib/utils";
+import { NEAR_CONTRACT_ID } from "@/lib/constants";
 
 export function NearVerificationDashboard() {
   const [queryInput, setQueryInput] = useState("");
@@ -104,7 +105,7 @@ export function NearVerificationDashboard() {
       "Generating Canonical Key-Sorted JSON Data Structure...",
       "Computing Cryptographic SHA-256 Report Digest...",
       "Connecting to NEAR Testnet RPC & Querying Nonce...",
-      "Broadcasting Transaction to Contract trustguard-reports.testnet...",
+      `Broadcasting Transaction to Contract ${NEAR_CONTRACT_ID}...`,
       "Awaiting Testnet Block Finality & Cryptographic Seal...",
     ];
 
@@ -263,19 +264,24 @@ export function NearVerificationDashboard() {
                     <div className="flex items-center space-x-2">
                       <span className="text-sm font-bold text-slate-100">
                         {queryResult.isVerified
-                          ? queryResult.record?.isContractDeployed && queryResult.record?.nearTxHash
+                          ? queryResult.record?.status === "VERIFIED_ON_NEAR"
                             ? "Cryptographically Sealed on NEAR Protocol"
                             : "Registered in TrustGuard Ledger"
                           : "Verification Not Found"}
                       </span>
                       <span
                         className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
-                          queryResult.isVerified
+                          queryResult.record?.status === "VERIFIED_ON_NEAR"
+                            ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                            : queryResult.isVerified
                             ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
                             : "bg-rose-500/15 text-rose-300 border border-rose-500/30"
                         }`}
                       >
-                        {queryResult.record?.statusLabel || queryResult.status}
+                        {queryResult.record?.statusLabel ||
+                          (queryResult.record?.status === "VERIFIED_ON_NEAR"
+                            ? "Verified live on NEAR Testnet"
+                            : queryResult.status)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5">{queryResult.message}</p>
@@ -345,6 +351,11 @@ export function NearVerificationDashboard() {
                         <span>View on NEAR Testnet Explorer</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
+                    ) : queryResult.record.status === "VERIFIED_ON_NEAR" ? (
+                      <span className="text-emerald-400 font-mono text-[10px] flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Verified on NEAR Testnet Contract State</span>
+                      </span>
                     ) : (
                       <span className="text-slate-500 italic text-[10px]">
                         Contract deployment on Testnet pending
@@ -410,7 +421,7 @@ export function NearVerificationDashboard() {
 
             <div className="sm:col-span-4 flex items-center justify-between pt-1">
               <span className="text-[10px] font-mono text-slate-500">
-                Network: <strong>NEAR Testnet</strong> • Contract: <strong>trustguard-reports.testnet</strong>
+                Network: <strong>NEAR Testnet</strong> • Contract: <strong>{NEAR_CONTRACT_ID}</strong>
               </span>
 
               <button
@@ -448,13 +459,22 @@ export function NearVerificationDashboard() {
                 <span className="flex items-center space-x-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span>
-                    {anchorSuccessRecord.isContractDeployed && anchorSuccessRecord.nearTxHash
+                    {anchorSuccessRecord.status === "VERIFIED_ON_NEAR"
                       ? "Report Successfully Sealed on NEAR Testnet!"
                       : "Report Fingerprint Registered in Registry"}
                   </span>
                 </span>
-                <span className="text-[10px] text-amber-300 font-normal">
-                  {anchorSuccessRecord.statusLabel || "Off-chain registration"}
+                <span
+                  className={`text-[10px] font-normal ${
+                    anchorSuccessRecord.status === "VERIFIED_ON_NEAR"
+                      ? "text-emerald-300"
+                      : "text-amber-300"
+                  }`}
+                >
+                  {anchorSuccessRecord.statusLabel ||
+                    (anchorSuccessRecord.status === "VERIFIED_ON_NEAR"
+                      ? "Verified live on NEAR Testnet"
+                      : "Off-chain registration")}
                 </span>
               </div>
 
@@ -476,6 +496,11 @@ export function NearVerificationDashboard() {
                     <span>View TX on NEAR Testnet Explorer</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
+                ) : anchorSuccessRecord.status === "VERIFIED_ON_NEAR" ? (
+                  <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Anchored at block #{anchorSuccessRecord.blockHeight.toLocaleString()}</span>
+                  </span>
                 ) : (
                   <span className="text-[10px] text-slate-500 italic">
                     On-chain broadcast activates upon Testnet contract deployment

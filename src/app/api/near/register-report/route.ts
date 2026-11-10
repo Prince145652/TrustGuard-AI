@@ -55,10 +55,15 @@ export async function POST(req: NextRequest) {
       totalFindings: (threats?.length || 0) + (indicators?.length || 0),
     });
 
+    const message =
+      record.status === "VERIFIED_ON_NEAR"
+        ? `Report successfully sealed and verified on NEAR Testnet at block #${record.blockHeight.toLocaleString()}`
+        : `Report successfully registered in TrustGuard ledger at block #${record.blockHeight.toLocaleString()}`;
+
     return NextResponse.json({
       success: true,
       record,
-      message: `Report successfully registered in TrustGuard registry at block #${record.blockHeight.toLocaleString()} (Off-chain registration — Testnet contract deployment pending)`,
+      message,
     });
   } catch (err: unknown) {
     console.error("NEAR Anchoring Error:", err);
