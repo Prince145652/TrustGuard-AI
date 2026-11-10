@@ -96,13 +96,13 @@ export async function POST(req: NextRequest) {
 
     const { message, language, context, history } = parsed.data;
 
-    // Defensive zero-knowledge rule
+    // Defensive secret protection rule
     if (looksLikeSecret(message)) {
       return NextResponse.json(
         {
           error: "Security Violation",
           details: [
-            "CRITICAL: Never share private keys or seed phrases with the AI Analyst! TrustGuard operates on zero-knowledge architecture.",
+            "CRITICAL: Never share private keys or seed phrases with the AI Analyst! TrustGuard operates with strict client-side secret protection.",
           ],
         },
         { status: 400 }

@@ -33,7 +33,7 @@ export function Sidebar({
     { id: "wallet", label: "Wallet Scanner", icon: Wallet },
     { id: "website", label: "Website Scanner", icon: Globe },
     { id: "token", label: "Token Scanner", icon: Coins },
-    { id: "analyst", label: "AI Security Analyst", icon: Brain, badge: "Gemini" },
+    { id: "analyst", label: "AI Security Analyst", icon: Brain, badge: "AI" },
     { id: "reports", label: "Security Reports", icon: FileCheck2, badge: "NEAR" },
     { id: "settings", label: "Settings", icon: Settings },
   ];

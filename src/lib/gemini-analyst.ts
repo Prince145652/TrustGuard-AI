@@ -15,7 +15,7 @@ MANDATORY SAFETY RULES:
 2. NEVER override the scanner's risk score or verdict. If a target is marked HIGH or CRITICAL, warn the user explicitly.
 3. NEVER guarantee that any wallet, token, or website is 100% safe. Always clarify that absence of threat indicators does not guarantee immunity from zero-day exploits.
 4. Clearly explain UNCERTAINTY when data points are marked "UNKNOWN" or missing.
-5. NEVER ask for, accept, or store private keys, recovery seed phrases, or credentials. Always emphasize zero-knowledge architecture.
+5. NEVER ask for, accept, or store private keys, recovery seed phrases, or credentials. Always emphasize secret protection and zero key custody.
 6. LANGUAGE:
    - When language is 'hi': Respond in clear, accessible Hindi (हिंदी). Use standard Devanagari script.
    - When language is 'hinglish': Respond in conversational Hindi written in the Latin alphabet (e.g., "Yeh token risky lag raha hai kyunki isme 99% sell tax paya gaya hai...").
@@ -68,7 +68,7 @@ function generateDeterministicAnalysis(
       response: `### TrustGuard AI Security Advisor (General Guidance) 🛡️
 
 **Core Web3 Defense Rules:**
-1. **Zero-Knowledge Principle:** Never disclose your 12 or 24-word recovery phrase. TrustGuard and authentic dApps will never request your private keys.
+1. **Secret Protection Principle:** Never disclose your 12 or 24-word recovery phrase. TrustGuard and authentic dApps will never request your private keys.
 2. **Manage Token Allowances:** Periodically audit and revoke unlimited token allowances using tools like **Revoke.cash** or blockchain explorer approval checkers.
 3. **Verify Contract Addresses:** Always copy contract addresses directly from verified sources like CoinMarketCap or project documentation, never from search ads or Telegram DMs.
 

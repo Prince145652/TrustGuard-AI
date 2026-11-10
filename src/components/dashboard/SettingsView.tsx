@@ -23,7 +23,7 @@ export function SettingsView() {
           <span>Security &amp; Engine Settings</span>
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          Configure blockchain RPC connectivity, Gemini AI heuristics, and zero-knowledge privacy parameters.
+          Configure blockchain RPC connectivity, AI reasoning heuristics, and secret protection parameters.
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export function SettingsView() {
         <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md space-y-3">
           <div className="flex items-center space-x-2 text-sm font-semibold text-slate-200">
             <Cpu className="w-4 h-4 text-emerald-400" />
-            <span>Gemini AI Threat Classification Engine</span>
+            <span>AI Threat Classification Engine</span>
           </div>
           <p className="text-xs text-slate-400">
             Choose the neural reasoning tier applied to smart contract decompilation and phishing detection.
@@ -92,11 +92,11 @@ export function SettingsView() {
           </div>
         </div>
 
-        {/* Privacy & Zero-Knowledge Enforcement */}
+        {/* Privacy & Secret Protection Enforcement */}
         <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md space-y-3">
           <div className="flex items-center space-x-2 text-sm font-semibold text-slate-200">
             <Lock className="w-4 h-4 text-cyan-400" />
-            <span>Zero-Knowledge &amp; Privacy Safeguards</span>
+            <span>Client-Side Secret Shield &amp; Privacy Safeguards</span>
           </div>
 
           <div className="space-y-3">

@@ -44,14 +44,14 @@ export function Navbar({
     {
       id: "n-2",
       title: "Contract Audited & Verified",
-      desc: "aurora.near verified on NEAR Mainnet block #138,420,119.",
+      desc: "aurora.near verified on NEAR Testnet contract tg-auditor-2026.testnet.",
       time: "45m ago",
       type: "success",
     },
     {
       id: "n-3",
       title: "Heuristic Engine Updated",
-      desc: "Gemini AI Threat model weights updated for NEP-141 honeypots.",
+      desc: "AI threat detection heuristics ready for NEP-141 honeypot analysis.",
       time: "2h ago",
       type: "info",
     },
@@ -94,10 +94,10 @@ export function Navbar({
           </div>
         </div>
 
-        {/* Center: Zero Knowledge indicator */}
+        {/* Center: Secret Shield indicator */}
         <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-xs text-slate-400">
           <Lock className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Zero-Knowledge Engine: No Keys or Seed Phrases Stored</span>
+          <span>Client-Side Secret Shield: No Keys or Seed Phrases Stored</span>
         </div>
 
         {/* Right Section: Network selector, Notifications, User Profile */}

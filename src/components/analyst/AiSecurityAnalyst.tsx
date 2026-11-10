@@ -595,10 +595,10 @@ Select a context preset above or ask any Web3 security question below!`,
           </button>
         </form>
 
-        {/* Footer Zero-Knowledge Rule */}
+        {/* Footer Secret Protection Rule */}
         <div className="mt-3 text-[10px] font-mono text-slate-500 text-center flex items-center justify-center space-x-1.5">
-          <Lock className="w-3 h-3 text-cyan-400" />
-          <span>Zero-Knowledge Architecture: We never request, store, or accept private keys or recovery seed phrases.</span>
+          <Lock className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Secret Protection Architecture: We never request, store, or accept private keys or recovery seed phrases.</span>
         </div>
       </div>
     </div>

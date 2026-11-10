@@ -17,7 +17,7 @@ import { ScanContext } from "@/types/ai-analyst";
 
 export default function DashboardPage() {
   const [currentTab, setCurrentTab] = useState<NavTab>("overview");
-  const [currentNetwork, setCurrentNetwork] = useState<NearNetwork>("NEAR Mainnet");
+  const [currentNetwork, setCurrentNetwork] = useState<NearNetwork>("NEAR Testnet");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [activeScanContext, setActiveScanContext] = useState<ScanContext | null>(null);
 
@@ -126,7 +126,7 @@ export default function DashboardPage() {
               <div className="pb-2 border-b border-slate-800/80">
                 <h1 className="text-2xl font-bold text-slate-100">System Preferences</h1>
                 <p className="text-xs text-slate-400 mt-1">
-                  Configure blockchain nodes, Gemini AI sensitivity, and zero-knowledge privacy.
+                  Configure blockchain nodes, AI sensitivity, and secret protection safeguards.
                 </p>
               </div>
               <SettingsView />

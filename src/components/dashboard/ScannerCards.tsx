@@ -74,7 +74,7 @@ export function ScannerCards() {
     if (looksLikeSecret(rawInput)) {
       setState((prev) => ({
         ...prev,
-        error: "SECURITY ALERT: Never enter private keys or seed phrases! TrustGuard is zero-knowledge.",
+        error: "SECURITY ALERT: Never enter private keys or seed phrases! TrustGuard never accesses private keys.",
       }));
       return;
     }

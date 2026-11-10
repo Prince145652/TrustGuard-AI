@@ -14,8 +14,8 @@ export const NEAR_CONTRACT_ID =
   process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID || "tg-auditor-2026.testnet";
 
 export const NETWORKS: { id: NearNetwork; label: string; badge: string; color: string }[] = [
-  { id: "NEAR Mainnet", label: "NEAR Mainnet", badge: "Live RPC", color: "emerald" },
-  { id: "NEAR Testnet", label: "NEAR Testnet", badge: "Test Environment", color: "cyan" },
+  { id: "NEAR Testnet", label: "NEAR Testnet", badge: "Active Contract", color: "emerald" },
+  { id: "NEAR Mainnet", label: "NEAR Mainnet", badge: "Read-only RPC", color: "cyan" },
   { id: "Aurora Engine", label: "Aurora EVM", badge: "Rainbow Bridge", color: "purple" },
 ];
 

@@ -108,7 +108,7 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
 
     // Multi-stage progress indicator
     const stages = [
-      "Validating EVM Checksum & Zero-Knowledge Pre-Checks...",
+      "Validating EVM Checksum & Secret Leak Pre-Checks...",
       "Querying OFAC Sanctions & Web3 Drainer Registries...",
       `Connecting to ${EVM_CHAINS[selectedChain].name} RPC nodes for Balance & Nonce...`,
       "Analyzing Contract Bytecode & Calculating Transparent Risk Score...",
@@ -230,7 +230,7 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
 
           <div className="flex items-center space-x-2 text-xs font-mono text-slate-400 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 self-start sm:self-auto">
             <Lock className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Zero-Knowledge: Public Data Only</span>
+            <span>Secret Protection: Public Data Only</span>
           </div>
         </div>
 
