@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/scanner-integration.test.ts tests/security-verification.test.ts",
-    "test:e2e": "tsx --test tests/runtime-step2-verification.test.ts"
+    "test": "tsx --conditions=react-server --test tests/scanner-integration.test.ts tests/security-verification.test.ts",
+    "test:e2e": "tsx --conditions=react-server --test tests/runtime-step2-verification.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",
@@ -19,6 +19,7 @@
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },

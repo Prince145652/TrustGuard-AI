@@ -101,7 +101,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Verification & Testing
 
 ### 1. Standalone Unit & Integration Suite
-Runs 23 automated tests verifying canonical JSON serialization, avalanche effect, hash validation, address checks, secret protection, and NEAR testnet contract query handling without requiring a server:
+Runs 54 automated tests across 20 suites verifying canonical JSON serialization, cryptographic avalanche effect, SHA-256 validation, secret protection, safe RPC timeout / inconclusive handling, live activity queue deduplication, and NEAR testnet contract query & transaction hash caching:
 ```bash
 npm test
 ```

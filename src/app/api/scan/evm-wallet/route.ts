@@ -152,6 +152,7 @@ export async function POST(req: NextRequest) {
       // Incomplete RPC telemetry: Do NOT claim safe without evidence
       riskLevel = "UNKNOWN";
       riskScore = 0;
+      threats.push("Telemetry Inconclusive: RPC lookup timed out across fallback nodes. Safety cannot be determined.");
       recommendations.push(
         "Critical RPC telemetry unavailable. Threat status cannot be definitively confirmed without on-chain data.",
         "Retry the scan or verify the address manually on the blockchain explorer."

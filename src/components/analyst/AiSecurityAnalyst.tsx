@@ -447,14 +447,18 @@ Select a context preset above or ask any Web3 security question below!`,
                 <span className="text-slate-400">Threat Score:</span>
                 <span
                   className={`px-2 py-0.5 rounded font-bold ${
-                    currentContext.riskScore >= 75
+                    currentContext.riskLevel === "UNKNOWN"
+                      ? "bg-amber-500/15 text-amber-300 border border-amber-500/40"
+                      : currentContext.riskScore >= 75
                       ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
                       : currentContext.riskScore >= 35
                       ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40"
                       : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
                   }`}
                 >
-                  {currentContext.riskScore}/100 ({currentContext.riskLevel})
+                  {currentContext.riskLevel === "UNKNOWN"
+                    ? "INCONCLUSIVE (TELEMETRY TIMEOUT)"
+                    : `${currentContext.riskScore}/100 (${currentContext.riskLevel})`}
                 </span>
               </div>
             </div>

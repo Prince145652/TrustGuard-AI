@@ -2,22 +2,30 @@ import { z } from "zod";
 
 // Defensive check: detect if someone accidentally pastes a seed phrase or private key
 export function looksLikeSecret(value: string): boolean {
+  if (!value || typeof value !== "string") return false;
   const trimmed = value.trim();
 
-  // If text contains question marks, exclamation marks, commas, or common sentence punctuation,
-  // it is natural language dialogue, not a raw mnemonic or private key
-  if (/[?!,;]/.test(trimmed)) {
-    return false;
+  // Explicit safety placeholder check
+  const placeholderRegex = /\[REDACTED_(PRIVATE_KEY|SECRET|SEED_PHRASE)\]|\[(PRIVATE_KEY|SEED_PHRASE)\]/i;
+  if (placeholderRegex.test(trimmed)) {
+    return true;
   }
 
   // Raw 64-hex EVM Private Key (with or without 0x)
-  if (/^(0x)?[0-9a-fA-F]{64}$/.test(trimmed)) {
+  if (/\b(0x)?[0-9a-fA-F]{64}\b/.test(trimmed)) {
     return true;
   }
 
   // Raw NEAR ed25519 or secp256k1 private key
-  if (trimmed.startsWith("ed25519:") && trimmed.length > 70) return true;
-  if (trimmed.startsWith("secp256k1:") && trimmed.length > 70) return true;
+  if (/\b(ed25519|secp256k1):[a-zA-Z0-9]{40,}\b/.test(trimmed)) {
+    return true;
+  }
+
+  // If text contains question marks, exclamation marks, commas, or common sentence punctuation,
+  // it is natural language dialogue, not a raw mnemonic phrase
+  if (/[?!,;]/.test(trimmed)) {
+    return false;
+  }
 
   // BIP-39 mnemonic seed phrase check:
   // Must be exactly 12, 15, 18, 21, or 24 words of pure alphabetic lowercase letters
@@ -38,6 +46,47 @@ export function looksLikeSecret(value: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Sanitizes and masks sensitive credentials before logging or forwarding to external APIs.
+ */
+export function redactSecrets(text: string): string {
+  if (!text || typeof text !== "string") return text;
+  let sanitized = text;
+
+  // 1. Redact placeholders
+  sanitized = sanitized.replace(/\[REDACTED_(PRIVATE_KEY|SECRET|SEED_PHRASE)\]/gi, "[REDACTED_PRIVATE_KEY]");
+  sanitized = sanitized.replace(/\[(PRIVATE_KEY|SEED_PHRASE)\]/gi, "[REDACTED_PRIVATE_KEY]");
+
+  // 2. Redact 64-hex EVM private keys (preserving 40-character public addresses)
+  sanitized = sanitized.replace(/\b0x[0-9a-fA-F]{64}\b/g, "[REDACTED_PRIVATE_KEY]");
+  sanitized = sanitized.replace(/\b[0-9a-fA-F]{64}\b/g, "[REDACTED_PRIVATE_KEY]");
+
+  // 3. Redact NEAR ed25519 / secp256k1 private keys
+  sanitized = sanitized.replace(/\b(ed25519|secp256k1):[a-zA-Z0-9]{40,}\b/g, "[REDACTED_NEAR_KEY]");
+
+  return sanitized;
+}
+
+/**
+ * Detects whether a user message is inquiring about, sharing, or attempting to audit a private key or seed phrase.
+ */
+export function isAskingAboutPrivateKey(text: string): boolean {
+  if (!text || typeof text !== "string") return false;
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("[redacted_private_key]") ||
+    lower.includes("[redacted_secret]") ||
+    lower.includes("[redacted_seed_phrase]") ||
+    lower.includes("private key") ||
+    lower.includes("private-key") ||
+    lower.includes("seed phrase") ||
+    lower.includes("seedphrase") ||
+    lower.includes("recovery phrase") ||
+    lower.includes("mnemonic") ||
+    lower.includes("secret key")
+  );
 }
 
 // NEAR Account ID validation

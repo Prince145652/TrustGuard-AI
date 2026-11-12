@@ -14,16 +14,44 @@ import { TokenSecurityScanner } from "@/components/scanner/TokenSecurityScanner"
 import { AiSecurityAnalyst } from "@/components/analyst/AiSecurityAnalyst";
 import { NavTab, NearNetwork } from "@/types/security";
 import { ScanContext } from "@/types/ai-analyst";
+import { EvmChainId } from "@/types/evm-security";
+import { computePrefillTransition, PrefillTargets, PrefillChains } from "@/lib/quickscan-utils";
 
 export default function DashboardPage() {
   const [currentTab, setCurrentTab] = useState<NavTab>("overview");
   const [currentNetwork, setCurrentNetwork] = useState<NearNetwork>("NEAR Testnet");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [activeScanContext, setActiveScanContext] = useState<ScanContext | null>(null);
+  const [prefilledTargets, setPrefilledTargets] = useState<PrefillTargets>({});
+  const [prefilledChains, setPrefilledChains] = useState<PrefillChains>({});
 
   const handleAnalyzeWithAi = (context: ScanContext) => {
     setActiveScanContext(context);
     setCurrentTab("analyst");
+  };
+
+  const handleNavigateToScanner = (tab: "wallet" | "website" | "token", target: string, chain?: EvmChainId) => {
+    const transition = computePrefillTransition(tab, target, chain, prefilledTargets, prefilledChains);
+    if (transition.allowed) {
+      setPrefilledTargets(transition.nextTargets);
+      setPrefilledChains(transition.nextChains);
+      setCurrentTab(tab);
+    }
+  };
+
+  const handleClearPrefill = (tab: "wallet" | "website" | "token") => {
+    setPrefilledTargets((prev) => {
+      const next = { ...prev };
+      delete next[tab];
+      return next;
+    });
+    if (tab === "wallet" || tab === "token") {
+      setPrefilledChains((prev) => {
+        const next = { ...prev };
+        delete next[tab];
+        return next;
+      });
+    }
   };
 
   return (
@@ -80,7 +108,10 @@ export default function DashboardPage() {
               <OverviewStats />
 
               {/* 2. Three Attractive Scanner Cards (Wallet, Website, Token) */}
-              <ScannerCards />
+              <ScannerCards
+                onNavigateToScanner={handleNavigateToScanner}
+                onAnalyzeWithAi={handleAnalyzeWithAi}
+              />
 
               {/* 3. Recent Security Activity Table */}
               <RecentActivityTable />
@@ -90,21 +121,35 @@ export default function DashboardPage() {
           {/* Dedicated Tab Views */}
           {currentTab === "wallet" && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <EvmWalletScanner onAnalyzeWithAi={handleAnalyzeWithAi} />
+              <EvmWalletScanner
+                onAnalyzeWithAi={handleAnalyzeWithAi}
+                initialTarget={prefilledTargets.wallet}
+                initialChain={prefilledChains.wallet}
+                onClearPrefill={() => handleClearPrefill("wallet")}
+              />
               <RecentActivityTable />
             </div>
           )}
 
           {currentTab === "website" && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <WebsiteScamDetector onAnalyzeWithAi={handleAnalyzeWithAi} />
+              <WebsiteScamDetector
+                onAnalyzeWithAi={handleAnalyzeWithAi}
+                initialTarget={prefilledTargets.website}
+                onClearPrefill={() => handleClearPrefill("website")}
+              />
               <RecentActivityTable />
             </div>
           )}
 
           {currentTab === "token" && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <TokenSecurityScanner onAnalyzeWithAi={handleAnalyzeWithAi} />
+              <TokenSecurityScanner
+                onAnalyzeWithAi={handleAnalyzeWithAi}
+                initialTarget={prefilledTargets.token}
+                initialChain={prefilledChains.token}
+                onClearPrefill={() => handleClearPrefill("token")}
+              />
               <RecentActivityTable />
             </div>
           )}

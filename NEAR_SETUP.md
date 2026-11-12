@@ -81,7 +81,7 @@ Create or update `.env.local` in the root of the project with your NEAR Testnet 
 # ==========================================
 NEAR_NETWORK_ID="testnet"
 NEAR_NODE_URL="https://rpc.testnet.near.org"
-NEAR_CONTRACT_ID="trustguard.testnet"
+NEAR_CONTRACT_ID="tg-auditor-2026.testnet"
 
 # Optional: Server-Side Automated Anchoring Signer
 # (Never share or commit private keys to GitHub!)
@@ -133,7 +133,9 @@ The NEAR integration files in this codebase are organized as follows:
 │   ├── types/
 │   │   └── near-verification.ts      # TypeScript interfaces for on-chain records
 │   ├── lib/
+│   │   ├── near-config.ts            # NEAR Testnet configuration constants
 │   │   ├── near-hashing.ts           # Canonical JSON serialization & SHA-256
+│   │   ├── tx-cache.ts               # Base58 32-byte transaction hash caching & persistence
 │   │   └── near-client.ts            # near-api-js RPC client & contract caller
 │   ├── app/api/near/
 │   │   ├── register-report/route.ts  # POST endpoint to anchor report

@@ -69,8 +69,13 @@ target/wasm32-unknown-unknown/release/trustguard_registry.wasm
 
 ## 4. Deploying to NEAR Testnet
 
+### Active Testnet Deployment:
+- **Contract Account ID**: `tg-auditor-2026.testnet`
+- **Network**: NEAR Testnet (`https://rpc.testnet.near.org`)
+- **Explorer**: [https://testnet.nearblocks.io/address/tg-auditor-2026.testnet](https://testnet.nearblocks.io/address/tg-auditor-2026.testnet)
+
 ### Step 1: Login or create your deployer account
-Ensure you have a funded NEAR Testnet account (e.g., `trustguard-auditor.testnet`):
+Ensure you have a funded NEAR Testnet account (e.g., `tg-auditor-2026.testnet`):
 
 ```bash
 near login
@@ -81,7 +86,7 @@ Deploy the `.wasm` file to your contract account:
 
 ```bash
 near deploy \
-  --accountId trustguard-auditor.testnet \
+  --accountId tg-auditor-2026.testnet \
   --wasmFile target/wasm32-unknown-unknown/release/trustguard_registry.wasm
 ```
 
@@ -89,7 +94,7 @@ near deploy \
 Call the initialization function `new()`:
 
 ```bash
-near call trustguard-auditor.testnet new '{"owner_id": "trustguard-auditor.testnet"}' --accountId trustguard-auditor.testnet
+near call tg-auditor-2026.testnet new '{"owner_id": "tg-auditor-2026.testnet"}' --accountId tg-auditor-2026.testnet
 ```
 
 ---
@@ -98,19 +103,17 @@ near call trustguard-auditor.testnet new '{"owner_id": "trustguard-auditor.testn
 
 ### A. Register an Audit Report (Change Call)
 ```bash
-near call trustguard-auditor.testnet register_report '{
+near call tg-auditor-2026.testnet register_report '{
   "report_id": "TG-WAL-TEST01",
   "report_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "target": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-  "scan_type": "WALLET",
-  "risk_score": 12,
-  "risk_level": "LOW"
-}' --accountId trustguard-auditor.testnet --gas 30000000000000
+  "risk_score": 12
+}' --accountId tg-auditor-2026.testnet --gas 30000000000000
 ```
 
 ### B. Verify the Report (View Call - Free, No Gas)
 ```bash
-near view trustguard-auditor.testnet verify_report '{
+near view tg-auditor-2026.testnet verify_report '{
   "report_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }'
 # Output: true
@@ -118,7 +121,7 @@ near view trustguard-auditor.testnet verify_report '{
 
 ### C. Retrieve Report Details (View Call)
 ```bash
-near view trustguard-auditor.testnet get_report '{
+near view tg-auditor-2026.testnet get_report '{
   "report_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }'
 ```
@@ -132,7 +135,7 @@ Once your contract is deployed to Testnet, update your `.env.local` file:
 ```bash
 NEAR_NETWORK_ID="testnet"
 NEAR_NODE_URL="https://rpc.testnet.near.org"
-NEAR_CONTRACT_ID="trustguard-auditor.testnet"
+NEAR_CONTRACT_ID="tg-auditor-2026.testnet"
 ```
 
 Restart your Next.js application (`npm run dev`), and all verification queries will automatically read live data directly from your deployed contract on the NEAR blockchain!

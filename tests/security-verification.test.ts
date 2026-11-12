@@ -5,7 +5,14 @@ import {
   generateReportHash,
   isValidSha256,
 } from "../src/lib/near-hashing";
-import { looksLikeSecret, walletScanSchema } from "../src/lib/validators";
+import {
+  looksLikeSecret,
+  walletScanSchema,
+  redactSecrets,
+  isAskingAboutPrivateKey,
+} from "../src/lib/validators";
+import { analyzeWithGemini } from "../src/lib/gemini-analyst";
+import { recordScanActivity } from "../src/lib/activity-store";
 
 describe("TrustGuard AI Security Verification Suite", () => {
   // 1. Canonical JSON Key Sorting
@@ -254,6 +261,67 @@ describe("TrustGuard AI Security Verification Suite", () => {
 
       const hindiSentence = "Yeh website flagged kyun hai? Kya main connect karoon?";
       assert.equal(looksLikeSecret(hindiSentence), false);
+    });
+
+    it("should detect harmless placeholder [REDACTED_PRIVATE_KEY] and block it via looksLikeSecret and walletScanSchema", () => {
+      assert.equal(looksLikeSecret("[REDACTED_PRIVATE_KEY]"), true);
+      assert.equal(looksLikeSecret("[REDACTED_SECRET]"), true);
+      assert.equal(looksLikeSecret("[REDACTED_SEED_PHRASE]"), true);
+      assert.equal(looksLikeSecret("Can you check my private key [REDACTED_PRIVATE_KEY]?"), true);
+
+      const parseResult = walletScanSchema.safeParse({ target: "[REDACTED_PRIVATE_KEY]" });
+      assert.equal(parseResult.success, false);
+      assert.match(
+        parseResult.error!.issues[0].message,
+        /Private keys and seed phrases are strictly forbidden/
+      );
+    });
+
+    it("should redact sensitive inputs before logging or external API payloads with redactSecrets", () => {
+      const inputWithHex = "Please analyze key 0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f3608a9 for me";
+      const redactedHex = redactSecrets(inputWithHex);
+      assert.equal(redactedHex.includes("4c0883a6"), false, "Must not contain raw hex private key");
+      assert.match(redactedHex, /\[REDACTED_PRIVATE_KEY\]/);
+
+      const inputWithNear = "NEAR key ed25519:3D4YujbUjGq2e62mXk2fQ4C3eQf9A8F5x1K3h8j6e5c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1";
+      const redactedNear = redactSecrets(inputWithNear);
+      assert.equal(redactedNear.includes("3D4Yuj"), false, "Must not contain raw NEAR private key");
+      assert.match(redactedNear, /\[REDACTED_NEAR_KEY\]/);
+
+      // Public address must NOT be redacted
+      const publicAddress = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
+      assert.equal(redactSecrets(publicAddress), publicAddress);
+    });
+
+    it("should detect questions asking to check or share private keys with isAskingAboutPrivateKey", () => {
+      assert.equal(isAskingAboutPrivateKey("Can you check my private key [REDACTED_PRIVATE_KEY]?"), true);
+      assert.equal(isAskingAboutPrivateKey("Should I share my seed phrase with technical support?"), true);
+      assert.equal(isAskingAboutPrivateKey("How do I protect my recovery phrase?"), true);
+      assert.equal(isAskingAboutPrivateKey("Is 0x742d35Cc6634C0532925a3b844Bc454e4438f44e a safe wallet?"), false);
+    });
+
+    it("should warn users prominently about private keys in analyzeWithGemini deterministic engine", async () => {
+      const enResult = await analyzeWithGemini(undefined, "Can you check my private key [REDACTED_PRIVATE_KEY]?", "en");
+      assert.match(enResult.response, /CRITICAL SECURITY WARNING: NEVER SHARE YOUR PRIVATE KEYS OR SEED PHRASES/);
+      assert.match(enResult.response, /zero key custody/i);
+
+      const hiResult = await analyzeWithGemini(undefined, "Kya mujhe apni private key share karni chahiye?", "hi");
+      assert.match(hiResult.response, /अति महत्वपूर्ण सुरक्षा चेतावनी: अपनी प्राइवेट की या सीड फ्रेज कभी शेयर न करें/);
+
+      const hinglishResult = await analyzeWithGemini(undefined, "Kya mujhe apni private key share karni chahiye?", "hinglish");
+      assert.match(hinglishResult.response, /CRITICAL SECURITY WARNING: Private Key Ya Seed Phrase Kabhi Share Na Karein/);
+    });
+
+    it("should prevent storing secrets or [REDACTED_PRIVATE_KEY] in activity store", () => {
+      assert.throws(
+        () =>
+          recordScanActivity({
+            target: "[REDACTED_PRIVATE_KEY]",
+            scanType: "wallet",
+            riskLevel: "HIGH",
+          }),
+        /SECURITY VIOLATION/
+      );
     });
   });
 });

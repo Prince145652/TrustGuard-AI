@@ -46,7 +46,7 @@ export interface RecentSecurityActivity {
   scanType: "Wallet Scanner" | "Website Scanner" | "Token Scanner";
   riskLevel: RiskLevel;
   date: string;
-  status: "Safe" | "Threat Blocked" | "High Risk" | "Verified On-Chain";
+  status: "Safe" | "Threat Blocked" | "High Risk" | "Verified On-Chain" | "Inconclusive";
   nearTxHash?: string;
   isSample: boolean;
 }

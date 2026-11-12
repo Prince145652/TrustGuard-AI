@@ -354,14 +354,20 @@ export function SecurityScannerWidget({ initialType = "wallet" }: SecurityScanne
                     <div className="text-right">
                       <div className="text-[10px] uppercase font-mono text-slate-400">Threat Score</div>
                       <div className={`text-2xl font-bold font-mono ${colors.text}`}>
-                        {result.riskScore}
-                        <span className="text-xs text-slate-400">/100</span>
+                        {result.riskLevel === "UNKNOWN" ? (
+                          <span className="text-base font-bold">INCONCLUSIVE</span>
+                        ) : (
+                          <>
+                            {result.riskScore}
+                            <span className="text-xs text-slate-400">/100</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div
                       className={`px-3 py-1 rounded-lg text-xs font-bold font-mono border ${colors.border} ${colors.text}`}
                     >
-                      {result.riskLevel}
+                      {result.riskLevel === "UNKNOWN" ? "TELEMETRY TIMEOUT" : result.riskLevel}
                     </div>
                   </div>
                 </div>

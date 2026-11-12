@@ -23,7 +23,15 @@ function getConfidence(report: StructuredSecurityReport): number {
   return Math.min(95, 55 + evidenceCount * 8 + threatCount * 5);
 }
 
-function getRiskStyles(riskScore: number) {
+function getRiskStyles(riskScore: number, riskLevel?: string) {
+  if (riskLevel === "UNKNOWN") {
+    return {
+      label: "INCONCLUSIVE (TELEMETRY TIMEOUT)",
+      badge: "bg-amber-500/15 text-amber-300 border-amber-500/40",
+      icon: "text-amber-400",
+    };
+  }
+
   if (riskScore >= 75) {
     return {
       label: "HIGH RISK",
@@ -53,7 +61,7 @@ export function EvidenceFirstVerdict({
   const nearRecord = report.nearRecord;
   const isAnchored = nearRecord?.status === "VERIFIED_ON_NEAR";
   const confidence = getConfidence(report);
-  const risk = getRiskStyles(report.riskScore);
+  const risk = getRiskStyles(report.riskScore, report.riskLevel);
 
   const suspiciousSignals =
     report.detectedThreats.length > 0

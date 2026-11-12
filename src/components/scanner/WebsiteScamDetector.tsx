@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Globe,
   Shield,
@@ -21,17 +21,33 @@ import { WebsiteScanResult, WebsiteRiskLevel } from "@/types/website-security";
 import { looksLikeSecret } from "@/lib/validators";
 import { ScannerActionButtons } from "@/components/scanner/ScannerActionButtons";
 import { ScanContext } from "@/types/ai-analyst";
+import { recordScanActivity } from "@/lib/activity-store";
 
 interface WebsiteScamDetectorProps {
   onAnalyzeWithAi?: (context: ScanContext) => void;
+  initialTarget?: string;
+  onClearPrefill?: () => void;
 }
 
-export function WebsiteScamDetector({ onAnalyzeWithAi }: WebsiteScamDetectorProps = {}) {
-  const [urlInput, setUrlInput] = useState("");
+export function WebsiteScamDetector({
+  onAnalyzeWithAi,
+  initialTarget,
+  onClearPrefill,
+}: WebsiteScamDetectorProps = {}) {
+  const [urlInput, setUrlInput] = useState(initialTarget || "");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanStage, setScanStage] = useState("");
   const [scanResult, setScanResult] = useState<WebsiteScanResult | null>(null);
+
+  useEffect(() => {
+    if (initialTarget !== undefined) {
+      setUrlInput(initialTarget);
+      setScanResult(null);
+      setValidationError(null);
+      onClearPrefill?.();
+    }
+  }, [initialTarget, onClearPrefill]);
 
   // Test Presets
   const presets = [
@@ -129,6 +145,12 @@ export function WebsiteScamDetector({ onAnalyzeWithAi }: WebsiteScamDetectorProp
       }
 
       setScanResult(data);
+      recordScanActivity({
+        target: data.domain || input,
+        scanType: "Website Scanner",
+        riskScore: data.riskScore,
+        riskLevel: data.riskLevel,
+      });
     } catch (err: unknown) {
       setValidationError(
         err instanceof Error ? err.message : "Network error connecting to scanner API."
@@ -142,11 +164,11 @@ export function WebsiteScamDetector({ onAnalyzeWithAi }: WebsiteScamDetectorProp
   const getRiskStyle = (score: number, level: WebsiteRiskLevel) => {
     if (level === "UNKNOWN") {
       return {
-        badge: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
-        bar: "bg-zinc-500",
-        text: "text-zinc-400",
-        border: "border-zinc-800",
-        glow: "",
+        badge: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+        bar: "bg-amber-500",
+        text: "text-amber-400",
+        border: "border-amber-500/30",
+        glow: "shadow-[0_0_15px_rgba(245,158,11,0.15)]",
       };
     }
     if (score < 15) {
@@ -384,14 +406,20 @@ export function WebsiteScamDetector({ onAnalyzeWithAi }: WebsiteScamDetectorProp
                           Phishing Risk
                         </div>
                         <div className={`text-3xl font-extrabold font-mono ${styles.text}`}>
-                          {scanResult.riskScore}
-                          <span className="text-xs text-slate-400">/100</span>
+                          {scanResult.riskLevel === "UNKNOWN" ? (
+                            <span className="text-xl font-bold tracking-tight">INCONCLUSIVE</span>
+                          ) : (
+                            <>
+                              {scanResult.riskScore}
+                              <span className="text-xs text-slate-400">/100</span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono border ${styles.badge}`}
                       >
-                        {scanResult.riskLevel}
+                        {scanResult.riskLevel === "UNKNOWN" ? "TELEMETRY TIMEOUT" : scanResult.riskLevel}
                       </div>
                     </div>
                   </div>
@@ -400,7 +428,10 @@ export function WebsiteScamDetector({ onAnalyzeWithAi }: WebsiteScamDetectorProp
                   <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ${styles.bar}`}
-                      style={{ width: `${Math.max(scanResult.riskScore, 5)}%` }}
+                      style={{
+                        width: scanResult.riskLevel === "UNKNOWN" ? "100%" : `${Math.max(scanResult.riskScore, 5)}%`,
+                        opacity: scanResult.riskLevel === "UNKNOWN" ? 0.35 : 1,
+                      }}
                     />
                   </div>
                 </div>

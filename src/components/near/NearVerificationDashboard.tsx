@@ -20,8 +20,9 @@ import {
   Download,
 } from "lucide-react";
 import { NearVerificationRecord } from "@/types/near-verification";
-import { formatAddress } from "@/lib/utils";
+import { formatAddress, getRiskLevelFromScore } from "@/lib/utils";
 import { NEAR_CONTRACT_ID } from "@/lib/constants";
+import { recordNearRegistration } from "@/lib/activity-store";
 
 export function NearVerificationDashboard() {
   const [queryInput, setQueryInput] = useState("");
@@ -115,6 +116,27 @@ export function NearVerificationDashboard() {
     }
 
     try {
+      const canonicalRiskLevel = getRiskLevelFromScore(anchorRiskScore);
+      const evidenceStatus: "SAFE" | "WARNING" | "CRITICAL" | "UNKNOWN" =
+        canonicalRiskLevel === "UNKNOWN"
+          ? "UNKNOWN"
+          : canonicalRiskLevel === "CRITICAL"
+          ? "CRITICAL"
+          : canonicalRiskLevel === "HIGH" || canonicalRiskLevel === "MEDIUM"
+          ? "WARNING"
+          : "SAFE";
+
+      const evidenceFinding =
+        canonicalRiskLevel === "UNKNOWN"
+          ? "Audit Inconclusive: Telemetry timeout or pending verification"
+          : canonicalRiskLevel === "CRITICAL"
+          ? "Critical threat detected by automated security engine"
+          : canonicalRiskLevel === "HIGH"
+          ? "High risk factors detected by automated security engine"
+          : canonicalRiskLevel === "MEDIUM"
+          ? "Moderate risk factors detected by automated security engine"
+          : "Verified safe by TrustGuard Security Engine";
+
       const res = await fetch("/api/near/register-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,9 +144,17 @@ export function NearVerificationDashboard() {
           target: anchorTarget,
           scanType: anchorType,
           riskScore: anchorRiskScore,
-          riskLevel: anchorRiskScore >= 75 ? "CRITICAL" : anchorRiskScore >= 35 ? "MEDIUM" : "SAFE",
-          threats: anchorRiskScore >= 75 ? ["Flagged by TrustGuard automated threat telemetry"] : [],
-          evidence: [{ category: "On-Chain Audit", finding: "Verified by TrustGuard Security Engine", status: "SAFE" }],
+          riskLevel: canonicalRiskLevel,
+          threats: canonicalRiskLevel === "CRITICAL" || canonicalRiskLevel === "HIGH"
+            ? ["Flagged by TrustGuard automated threat telemetry"]
+            : [],
+          evidence: [
+            {
+              category: "On-Chain Audit",
+              finding: evidenceFinding,
+              status: evidenceStatus,
+            },
+          ],
         }),
       });
 
@@ -138,6 +168,18 @@ export function NearVerificationDashboard() {
 
       setAnchorSuccessRecord(data.record);
       setCurrentBlockHeight(data.record.blockHeight);
+
+      // Only record after confirmed registration success; pass genuine tx hash and actual risk score
+      if (data.record) {
+        recordNearRegistration({
+          target: anchorTarget,
+          scanType: anchorType,
+          nearTxHash: data.record.nearTxHash, // Genuine tx hash only (undefined if off-chain pending)
+          riskScore: anchorRiskScore,
+          riskLevel: data.record.riskLevel || canonicalRiskLevel,
+          reportId: data.record.reportId,
+        });
+      }
     } catch (err: unknown) {
       setAnchorError(err instanceof Error ? err.message : "Network error anchoring to NEAR Testnet.");
     } finally {
@@ -307,7 +349,9 @@ export function NearVerificationDashboard() {
                     <div>
                       <div className="text-[10px] uppercase text-slate-500">Risk Score &amp; Level</div>
                       <div className="text-slate-200">
-                        {queryResult.record.riskScore}/100 ({queryResult.record.riskLevel})
+                        {queryResult.record.riskLevel === "UNKNOWN"
+                          ? "INCONCLUSIVE (TELEMETRY TIMEOUT)"
+                          : `${queryResult.record.riskScore}/100 (${queryResult.record.riskLevel})`}
                       </div>
                     </div>
                     <div>

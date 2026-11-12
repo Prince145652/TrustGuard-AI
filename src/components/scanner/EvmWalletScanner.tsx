@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Shield,
   ShieldCheck,
@@ -23,18 +23,44 @@ import { EVM_CHAINS } from "@/lib/evm-provider";
 import { looksLikeSecret } from "@/lib/validators";
 import { ScannerActionButtons } from "@/components/scanner/ScannerActionButtons";
 import { ScanContext } from "@/types/ai-analyst";
+import { recordScanActivity } from "@/lib/activity-store";
 
 interface EvmWalletScannerProps {
   onAnalyzeWithAi?: (context: ScanContext) => void;
+  initialTarget?: string;
+  initialChain?: EvmChainId;
+  onClearPrefill?: () => void;
 }
 
-export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}) {
-  const [selectedChain, setSelectedChain] = useState<EvmChainId>("ethereum");
-  const [walletAddress, setWalletAddress] = useState("");
+export function EvmWalletScanner({
+  onAnalyzeWithAi,
+  initialTarget,
+  initialChain,
+  onClearPrefill,
+}: EvmWalletScannerProps = {}) {
+  const [selectedChain, setSelectedChain] = useState<EvmChainId>(initialChain || "ethereum");
+  const [walletAddress, setWalletAddress] = useState(initialTarget || "");
+  const [preselectedChainBadge, setPreselectedChainBadge] = useState<EvmChainId | null>(initialChain || null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanStage, setScanStage] = useState("");
   const [scanResult, setScanResult] = useState<EvmWalletScanResult | null>(null);
+
+  useEffect(() => {
+    if (initialTarget !== undefined) {
+      setWalletAddress(initialTarget);
+      setScanResult(null);
+      setValidationError(null);
+      if (initialChain) {
+        setSelectedChain(initialChain);
+        setPreselectedChainBadge(initialChain);
+      } else {
+        setSelectedChain("ethereum");
+        setPreselectedChainBadge(null);
+      }
+      onClearPrefill?.();
+    }
+  }, [initialTarget, initialChain, onClearPrefill]);
 
   // Test presets
   const presets = [
@@ -73,6 +99,7 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
   const handleApplyPreset = (address: string, chain: EvmChainId) => {
     setWalletAddress(address);
     setSelectedChain(chain);
+    setPreselectedChainBadge(null);
     setValidationError(null);
   };
 
@@ -135,6 +162,12 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
       }
 
       setScanResult(data);
+      recordScanActivity({
+        target: input,
+        scanType: "Wallet Scanner",
+        riskScore: data.riskScore,
+        riskLevel: data.riskLevel,
+      });
     } catch (err: unknown) {
       setValidationError(
         err instanceof Error ? err.message : "Network error connecting to scanner API."
@@ -148,11 +181,11 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
   const getRiskStyle = (score: number, level: string) => {
     if (level === "UNKNOWN") {
       return {
-        badge: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
-        bar: "bg-zinc-500",
-        text: "text-zinc-400",
-        border: "border-zinc-800",
-        glow: "",
+        badge: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+        bar: "bg-amber-500",
+        text: "text-amber-400",
+        border: "border-amber-500/30",
+        glow: "shadow-[0_0_15px_rgba(245,158,11,0.15)]",
       };
     }
     if (score < 15) {
@@ -239,6 +272,11 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
           <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
             <span>1. Select Blockchain Network</span>
+            {preselectedChainBadge && (
+              <span className="text-[11px] font-mono text-cyan-300 font-medium px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30">
+                (Detected network preselected from Quick Scan)
+              </span>
+            )}
           </label>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -250,8 +288,11 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
                   key={cId}
                   type="button"
                   onClick={() => {
-                    setSelectedChain(cId);
-                    setScanResult(null);
+                    if (selectedChain !== cId) {
+                      setSelectedChain(cId);
+                      setScanResult(null);
+                      setPreselectedChainBadge(null);
+                    }
                   }}
                   className={`p-3 rounded-xl border text-left transition-all flex items-center justify-between group ${
                     isSelected
@@ -270,7 +311,14 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
                       }`}
                     />
                     <div>
-                      <div className="text-xs font-bold text-slate-100">{chain.name}</div>
+                      <div className="flex items-center space-x-1.5">
+                        <div className="text-xs font-bold text-slate-100">{chain.name}</div>
+                        {preselectedChainBadge === cId && (
+                          <span className="inline-flex items-center text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 shadow-sm">
+                            Preselected from scan
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] font-mono text-slate-400">
                         Chain ID: {chain.chainId} • {chain.symbol}
                       </div>
@@ -418,14 +466,20 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
                           Risk Score
                         </div>
                         <div className={`text-3xl font-extrabold font-mono ${styles.text}`}>
-                          {scanResult.riskScore}
-                          <span className="text-xs text-slate-400">/100</span>
+                          {scanResult.riskLevel === "UNKNOWN" ? (
+                            <span className="text-xl font-bold tracking-tight">INCONCLUSIVE</span>
+                          ) : (
+                            <>
+                              {scanResult.riskScore}
+                              <span className="text-xs text-slate-400">/100</span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono border ${styles.badge}`}
                       >
-                        {scanResult.riskLevel}
+                        {scanResult.riskLevel === "UNKNOWN" ? "TELEMETRY TIMEOUT" : scanResult.riskLevel}
                       </div>
                     </div>
                   </div>
@@ -434,7 +488,10 @@ export function EvmWalletScanner({ onAnalyzeWithAi }: EvmWalletScannerProps = {}
                   <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ${styles.bar}`}
-                      style={{ width: `${Math.max(scanResult.riskScore, 5)}%` }}
+                      style={{
+                        width: scanResult.riskLevel === "UNKNOWN" ? "100%" : `${Math.max(scanResult.riskScore, 5)}%`,
+                        opacity: scanResult.riskLevel === "UNKNOWN" ? 0.35 : 1,
+                      }}
                     />
                   </div>
                 </div>

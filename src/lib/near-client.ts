@@ -12,14 +12,10 @@ import {
   VerificationStatus,
 } from "@/types/near-verification";
 import { isValidSha256 } from "@/lib/near-hashing";
+import { NEAR_CONFIG } from "@/lib/near-config";
+import { cacheAnchoredTx, getCachedTx, isValidNearTxHash } from "@/lib/tx-cache";
 
-export const NEAR_CONFIG = {
-  networkId: "testnet" as const,
-  nodeUrl: process.env.NEAR_NODE_URL || "https://rpc.testnet.near.org",
-  contractId:
-    process.env.NEAR_CONTRACT_ID || "tg-auditor-2026.testnet",
-  explorerBaseUrl: "https://testnet.nearblocks.io/txns",
-};
+export { NEAR_CONFIG };
 
 export interface AnchorReportInput {
   reportId: string;
@@ -31,9 +27,43 @@ export interface AnchorReportInput {
   totalFindings?: number;
 }
 
+export type NearProviderMock = {
+  callFunction?: (params: { contractId: string; method: string; args: Record<string, unknown> }) => Promise<unknown>;
+  viewNodeStatus?: () => Promise<{ sync_info: { latest_block_height: number; syncing?: boolean } }>;
+};
+
+let testMockProvider: NearProviderMock | null = null;
+
+function isTestEnvironment(): boolean {
+  return process.env.NODE_ENV === "test" || Boolean(process.env.NODE_TEST_CONTEXT);
+}
+
+export function setNearTestMocks(mock: NearProviderMock | null): void {
+  if (!isTestEnvironment()) {
+    throw new Error("setNearTestMocks is strictly permitted in test environments.");
+  }
+  testMockProvider = mock;
+}
+
 function getProvider(): JsonRpcProvider {
   return new JsonRpcProvider({
     url: NEAR_CONFIG.nodeUrl,
+  });
+}
+
+async function callContractMethod(method: string, args: Record<string, unknown>): Promise<unknown> {
+  if (isTestEnvironment() && testMockProvider?.callFunction) {
+    return testMockProvider.callFunction({
+      contractId: NEAR_CONFIG.contractId,
+      method,
+      args,
+    });
+  }
+  const provider = getProvider();
+  return provider.callFunction({
+    contractId: NEAR_CONFIG.contractId,
+    method,
+    args,
   });
 }
 
@@ -93,6 +123,14 @@ export async function getNearTestnetStatus(): Promise<{
   blockHeight: number;
   synced: boolean;
 }> {
+  if (isTestEnvironment() && testMockProvider?.viewNodeStatus) {
+    const status = await testMockProvider.viewNodeStatus();
+    return {
+      blockHeight: status.sync_info.latest_block_height,
+      synced: !status.sync_info.syncing,
+    };
+  }
+
   const provider = getProvider();
   const status = await provider.viewNodeStatus();
 
@@ -181,24 +219,20 @@ export async function anchorReportOnNear(
   const provider = getProvider();
 
   // 1. Pre-flight check: is this hash already registered on-chain?
-  const alreadyRegistered = await provider.callFunction({
-    contractId: NEAR_CONFIG.contractId,
-    method: "verify_report",
-    args: {
-      report_hash: normalizedHash,
-    },
+  const alreadyRegistered = await callContractMethod("verify_report", {
+    report_hash: normalizedHash,
   });
 
   if (alreadyRegistered) {
-    const existing = await provider.callFunction({
-      contractId: NEAR_CONFIG.contractId,
-      method: "get_report",
-      args: {
-        report_hash: normalizedHash,
-      },
+    const existing = await callContractMethod("get_report", {
+      report_hash: normalizedHash,
     });
 
-    const record = mapOnChainRecord(existing as Record<string, unknown>);
+    // Priority 3: Hydrate genuine transaction hash from cache if available
+    const cached = getCachedTx(normalizedHash) || getCachedTx(data.reportId);
+    const cachedTxHash = cached?.nearTxHash;
+
+    const record = mapOnChainRecord(existing as Record<string, unknown>, cachedTxHash);
     record.scanType = data.scanType;
     record.riskLevel = data.riskLevel;
     if (data.totalFindings !== undefined && record.metadata) {
@@ -239,13 +273,25 @@ export async function anchorReportOnNear(
 
   const txHash = outcome.transaction.hash;
 
+  // Priority 3: Cache genuine transaction hash upon broadcast confirmation
+  if (txHash && isValidNearTxHash(txHash)) {
+    try {
+      cacheAnchoredTx({
+        reportHash: normalizedHash,
+        reportId: data.reportId,
+        nearTxHash: txHash,
+        contractId: NEAR_CONFIG.contractId,
+        network: NEAR_CONFIG.networkId,
+        timestamp: Date.now(),
+      });
+    } catch (cacheErr) {
+      console.warn("[near-client] Failed to cache anchored transaction hash:", cacheErr);
+    }
+  }
+
   // 5. Query newly confirmed record to obtain block height and timestamp
-  const onChainRecord = await provider.callFunction({
-    contractId: NEAR_CONFIG.contractId,
-    method: "get_report",
-    args: {
-      report_hash: normalizedHash,
-    },
+  const onChainRecord = await callContractMethod("get_report", {
+    report_hash: normalizedHash,
   });
 
   const record = mapOnChainRecord(
@@ -287,12 +333,8 @@ export async function verifyReportOnNear(
     if (isValidSha256(query)) {
       const normalizedHash = query.toLowerCase();
 
-      const exists = await provider.callFunction({
-        contractId: NEAR_CONFIG.contractId,
-        method: "verify_report",
-        args: {
-          report_hash: normalizedHash,
-        },
+      const exists = await callContractMethod("verify_report", {
+        report_hash: normalizedHash,
       });
 
       if (!exists) {
@@ -305,18 +347,18 @@ export async function verifyReportOnNear(
         };
       }
 
-      const onChainRecord = await provider.callFunction({
-        contractId: NEAR_CONFIG.contractId,
-        method: "get_report",
-        args: {
-          report_hash: normalizedHash,
-        },
+      const onChainRecord = await callContractMethod("get_report", {
+        report_hash: normalizedHash,
       });
+
+      // Priority 3: Hydrate genuine transaction hash from cache if available
+      const cached = getCachedTx(normalizedHash);
+      const cachedTxHash = cached?.nearTxHash;
 
       return {
         isVerified: true,
         status: "VERIFIED_ON_NEAR",
-        record: mapOnChainRecord(onChainRecord as Record<string, unknown>),
+        record: mapOnChainRecord(onChainRecord as Record<string, unknown>, cachedTxHash),
         queriedAtBlock: testnetState.blockHeight,
         message:
           "Cryptographic report hash verified via live NEAR Testnet RPC.",
@@ -324,12 +366,8 @@ export async function verifyReportOnNear(
     }
 
     // Otherwise, treat the input as a human-readable Report ID.
-    const onChainRecord = await provider.callFunction({
-      contractId: NEAR_CONFIG.contractId,
-      method: "get_report_by_id",
-      args: {
-        report_id: query,
-      },
+    const onChainRecord = await callContractMethod("get_report_by_id", {
+      report_id: query,
     });
 
     if (!onChainRecord) {
@@ -342,10 +380,14 @@ export async function verifyReportOnNear(
       };
     }
 
+    // Priority 3: Hydrate genuine transaction hash from cache if available
+    const cached = getCachedTx(query);
+    const cachedTxHash = cached?.nearTxHash;
+
     return {
       isVerified: true,
       status: "VERIFIED_ON_NEAR",
-      record: mapOnChainRecord(onChainRecord as Record<string, unknown>),
+      record: mapOnChainRecord(onChainRecord as Record<string, unknown>, cachedTxHash),
       queriedAtBlock: testnetState.blockHeight,
       message: "Report ID verified via live NEAR Testnet RPC.",
     };

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ScanContext } from "@/types/ai-analyst";
 import { NearVerificationRecord } from "@/types/near-verification";
+import { recordNearRegistration } from "@/lib/activity-store";
 
 export interface ScannerReportPayload {
   target: string;
@@ -106,6 +107,17 @@ export function ScannerActionButtons({
       }
 
       setRegistrationRecord(data.record);
+      // Only record after confirmed success; pass actual riskScore and genuine transaction hash
+      if (data.record) {
+        recordNearRegistration({
+          target: report.target,
+          scanType: report.scanType,
+          nearTxHash: data.record.nearTxHash, // Genuine NEAR tx hash only (never reportHash)
+          riskScore: report.riskScore,
+          riskLevel: report.riskLevel,
+          reportId: data.record.reportId,
+        });
+      }
     } catch (err: unknown) {
       setRegisterError(
         err instanceof Error ? err.message : "Error submitting report to NEAR registry"
@@ -136,16 +148,23 @@ export function ScannerActionButtons({
         <button
           type="button"
           onClick={handleRegisterOnNear}
-          disabled={isRegistering || Boolean(registrationRecord)}
+          disabled={isRegistering || Boolean(registrationRecord) || report.riskLevel === "UNKNOWN"}
           className={`flex-1 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold font-mono transition-all flex items-center justify-center space-x-2 border ${
-            registrationRecord
+            report.riskLevel === "UNKNOWN"
+              ? "bg-amber-950/20 border-amber-500/30 text-amber-400/80 cursor-not-allowed"
+              : registrationRecord
               ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 cursor-default"
               : isRegistering
               ? "bg-slate-900 border-slate-700 text-slate-400 cursor-wait"
               : "bg-slate-900 hover:bg-slate-800 border-slate-700 hover:border-emerald-500/50 text-slate-200 hover:text-emerald-300 shadow-md shadow-slate-950"
           }`}
         >
-          {isRegistering ? (
+          {report.riskLevel === "UNKNOWN" ? (
+            <>
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <span>Unverified (Inconclusive) — Anchoring Disabled</span>
+            </>
+          ) : isRegistering ? (
             <>
               <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
               <span>Generating SHA-256 &amp; Registering...</span>
@@ -163,6 +182,13 @@ export function ScannerActionButtons({
           )}
         </button>
       </div>
+
+      {report.riskLevel === "UNKNOWN" && (
+        <div className="text-xs font-mono text-amber-400/90 flex items-center space-x-1.5 px-2">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>Live verification telemetry is incomplete. Unverified reports cannot be anchored on-chain.</span>
+        </div>
+      )}
 
       {/* Error Message */}
       {registerError && (

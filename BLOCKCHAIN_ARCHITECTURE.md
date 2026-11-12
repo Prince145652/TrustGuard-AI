@@ -147,3 +147,35 @@ The Rust smart contract located in `contracts/trustguard-registry/` implements s
    let block_height = env::block_height();
    ```
    Relies exclusively on NEAR's Byzantine Fault Tolerant (BFT) consensus time rather than caller-supplied timestamps.
+
+---
+
+## 7. Transaction Hash Caching & Verification Hydration
+
+Because the smart contract stores report fingerprints (`report_hash`) and block heights without duplicating transaction hashes in contract storage, TrustGuard AI implements a **Server-Side Transaction Cache** (`src/lib/tx-cache.ts`):
+
+1. **Strict Base58 32-Byte Cryptographic Validation**:
+   ```typescript
+   export function isValidNearTxHash(hash: string): boolean {
+     if (!hash || typeof hash !== "string") return false;
+     try {
+       const decoded = baseDecode(hash);
+       return decoded.length === 32;
+     } catch {
+       return false;
+     }
+   }
+   ```
+   Prevents fabricated or malformed hashes from ever being recorded.
+
+2. **Dual-Index Caching**:
+   - Indexed by lowercase 64-character SHA-256 `reportHash`.
+   - Indexed by uppercase Report ID (e.g. `TG-WAL-202611...`).
+
+3. **Atomic Disk Persistence with In-Memory Resilience**:
+   Persisted safely to `.cache/near-tx-cache.json`. If filesystem writes fail or run in restricted environments, the cache gracefully falls back to in-memory lookups without throwing errors or breaking application flows.
+
+4. **Honest Hydration**:
+   - When a user runs a scan that matches an existing on-chain report, pre-flight checks hydrate the confirmed transaction hash and block explorer link.
+   - If a report is on-chain but was anchored outside the local instance, `nearTxHash` is honestly omitted (`undefined`) rather than fabricated.
+   - `UNKNOWN` risk states are strictly preserved as **Inconclusive** regardless of whether an anchoring transaction exists.

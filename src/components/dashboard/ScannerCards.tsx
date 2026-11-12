@@ -19,6 +19,15 @@ import {
 import { walletScanSchema, urlScanSchema, tokenScanSchema, looksLikeSecret } from "@/lib/validators";
 import { getRiskColor, getRiskLevelFromScore, formatAddress } from "@/lib/utils";
 import { RiskLevel, SecurityFactor } from "@/types/security";
+import { EvmChainId } from "@/types/evm-security";
+import { ScanContext } from "@/types/ai-analyst";
+import { buildQuickScanContext, isEvmAddress, isEvmChainId } from "@/lib/quickscan-utils";
+import { recordScanActivity } from "@/lib/activity-store";
+
+interface ScannerCardsProps {
+  onNavigateToScanner?: (tab: "wallet" | "website" | "token", target: string, chain?: EvmChainId) => void;
+  onAnalyzeWithAi?: (context: ScanContext) => void;
+}
 
 interface CardScanState {
   input: string;
@@ -32,10 +41,12 @@ interface CardScanState {
     factors: SecurityFactor[];
     verifiedOnNear: boolean;
     nearTxHash?: string;
+    threats?: string[];
+    detectedChain?: EvmChainId;
   } | null;
 }
 
-export function ScannerCards() {
+export function ScannerCards({ onNavigateToScanner, onAnalyzeWithAi }: ScannerCardsProps = {}) {
   const [walletState, setWalletState] = useState<CardScanState>({
     input: "",
     isScanning: false,
@@ -109,6 +120,7 @@ export function ScannerCards() {
         });
         if (evmRes.ok) {
           const evmData = await evmRes.json();
+          const detectedChain = isEvmChainId(evmData.chain) ? evmData.chain : undefined;
           setState((prev) => ({
             ...prev,
             isScanning: false,
@@ -118,7 +130,7 @@ export function ScannerCards() {
               riskLevel: evmData.riskLevel,
               summary: evmData.threats.length > 0
                 ? `CRITICAL THREAT: ${evmData.threats[0]}`
-                : `Verified ${evmData.accountType} on Ethereum. Balance: ${evmData.balance.formatted} ${evmData.balance.symbol}.`,
+                : `Verified ${evmData.accountType} on ${evmData.chainName || "EVM"}. Balance: ${evmData.balance.formatted} ${evmData.balance.symbol}.`,
               factors: evmData.evidence.map((ev: { category: string; finding: string; status: string }, idx: number) => ({
                 id: `evm-${idx}`,
                 category: "Access Control" as const,
@@ -129,8 +141,16 @@ export function ScannerCards() {
                 impactScore: ev.status === "CRITICAL" ? 50 : 0,
               })),
               verifiedOnNear: false,
+              threats: evmData.threats || [],
+              detectedChain,
             },
           }));
+          recordScanActivity({
+            target: rawInput,
+            scanType: "Wallet Scanner",
+            riskScore: evmData.riskScore,
+            riskLevel: evmData.riskLevel,
+          });
           return;
         }
       } catch {
@@ -166,8 +186,15 @@ export function ScannerCards() {
                 impactScore: ind.detected ? 25 : 0,
               })),
               verifiedOnNear: false,
+              threats: webData.indicators?.filter((i: { detected: boolean }) => i.detected).map((i: { name: string; description: string }) => `${i.name}: ${i.description}`) || [],
             },
           }));
+          recordScanActivity({
+            target: webData.domain || rawInput,
+            scanType: "Website Scanner",
+            riskScore: webData.riskScore,
+            riskLevel: webData.riskLevel,
+          });
           return;
         }
       } catch {
@@ -185,14 +212,15 @@ export function ScannerCards() {
         });
         if (tokenRes.ok) {
           const tokenData = await tokenRes.json();
+          const detectedChain = isEvmChainId(tokenData.chain) ? tokenData.chain : undefined;
           setState((prev) => ({
             ...prev,
             isScanning: false,
             result: {
-              target: `${tokenData.tokenName} (${tokenData.tokenSymbol})`,
+              target: rawInput,
               riskScore: tokenData.riskScore,
               riskLevel: tokenData.riskLevel,
-              summary: tokenData.summary,
+              summary: `${tokenData.tokenName} (${tokenData.tokenSymbol}) • ${tokenData.summary}`,
               factors: tokenData.indicators.map((ind: { name: string; description: string; detected: boolean; severity: string }, idx: number) => ({
                 id: `tok-${idx}`,
                 category: "Smart Contract Logic" as const,
@@ -203,8 +231,16 @@ export function ScannerCards() {
                 impactScore: ind.detected ? 25 : 0,
               })),
               verifiedOnNear: false,
+              threats: tokenData.threats || [],
+              detectedChain,
             },
           }));
+          recordScanActivity({
+            target: rawInput,
+            scanType: "Token Scanner",
+            riskScore: tokenData.riskScore,
+            riskLevel: tokenData.riskLevel,
+          });
           return;
         }
       } catch {
@@ -262,6 +298,12 @@ export function ScannerCards() {
         verifiedOnNear: false,
       },
     }));
+    recordScanActivity({
+      target: rawInput,
+      scanType: type === "wallet" ? "Wallet Scanner" : type === "website" ? "Website Scanner" : "Token Scanner",
+      riskScore,
+      riskLevel,
+    });
   };
 
   return (
@@ -359,13 +401,43 @@ export function ScannerCards() {
                       getRiskColor(walletState.result.riskLevel).border
                     } ${getRiskColor(walletState.result.riskLevel).text}`}
                   >
-                    {walletState.result.riskScore}/100 ({walletState.result.riskLevel})
+                    {walletState.result.riskLevel === "UNKNOWN"
+                      ? "INCONCLUSIVE (TELEMETRY TIMEOUT)"
+                      : `${walletState.result.riskScore}/100 (${walletState.result.riskLevel})`}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">{walletState.result.summary}</p>
                 <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 text-[10px] font-mono text-slate-500">
                   <span className="text-amber-400/90 font-medium">Heuristic Preview</span>
                   <span>Not verified on-chain</span>
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-900">
+                  {onNavigateToScanner && (
+                    isEvmAddress(walletState.result.target) ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToScanner("wallet", walletState.result!.target, walletState.result!.detectedChain)}
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-200 hover:text-emerald-300 flex items-center justify-center space-x-1 transition-colors"
+                      >
+                        <span>Full Scanner</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-mono text-slate-500 px-2 py-1 bg-slate-900/60 rounded border border-slate-800">
+                        EVM (0x) Only
+                      </span>
+                    )
+                  )}
+                  {onAnalyzeWithAi && (
+                    <button
+                      type="button"
+                      onClick={() => onAnalyzeWithAi(buildQuickScanContext("wallet", walletState.result!))}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[11px] font-mono text-emerald-300 flex items-center justify-center space-x-1 transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Analyze with AI</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -452,13 +524,37 @@ export function ScannerCards() {
                       getRiskColor(websiteState.result.riskLevel).border
                     } ${getRiskColor(websiteState.result.riskLevel).text}`}
                   >
-                    {websiteState.result.riskScore}/100 ({websiteState.result.riskLevel})
+                    {websiteState.result.riskLevel === "UNKNOWN"
+                      ? "INCONCLUSIVE (TELEMETRY TIMEOUT)"
+                      : `${websiteState.result.riskScore}/100 (${websiteState.result.riskLevel})`}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">{websiteState.result.summary}</p>
                 <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 text-[10px] font-mono text-slate-500">
                   <span className="text-amber-400/90 font-medium">Heuristic Preview</span>
                   <span>Not verified on-chain</span>
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-900">
+                  {onNavigateToScanner && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToScanner("website", websiteState.result!.target)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-200 hover:text-cyan-300 flex items-center justify-center space-x-1 transition-colors"
+                    >
+                      <span>Full Scanner</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  )}
+                  {onAnalyzeWithAi && (
+                    <button
+                      type="button"
+                      onClick={() => onAnalyzeWithAi(buildQuickScanContext("website", websiteState.result!))}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[11px] font-mono text-cyan-300 flex items-center justify-center space-x-1 transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Analyze with AI</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -545,13 +641,43 @@ export function ScannerCards() {
                       getRiskColor(tokenState.result.riskLevel).border
                     } ${getRiskColor(tokenState.result.riskLevel).text}`}
                   >
-                    {tokenState.result.riskScore}/100 ({tokenState.result.riskLevel})
+                    {tokenState.result.riskLevel === "UNKNOWN"
+                      ? "INCONCLUSIVE (TELEMETRY TIMEOUT)"
+                      : `${tokenState.result.riskScore}/100 (${tokenState.result.riskLevel})`}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">{tokenState.result.summary}</p>
                 <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 text-[10px] font-mono text-slate-500">
                   <span className="text-amber-400/90 font-medium">Heuristic Preview</span>
                   <span>Not verified on-chain</span>
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-900">
+                  {onNavigateToScanner && (
+                    isEvmAddress(tokenState.result.target) ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToScanner("token", tokenState.result!.target, tokenState.result!.detectedChain)}
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-200 hover:text-emerald-300 flex items-center justify-center space-x-1 transition-colors"
+                      >
+                        <span>Full Scanner</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-mono text-slate-500 px-2 py-1 bg-slate-900/60 rounded border border-slate-800">
+                        EVM (0x) Only
+                      </span>
+                    )
+                  )}
+                  {onAnalyzeWithAi && (
+                    <button
+                      type="button"
+                      onClick={() => onAnalyzeWithAi(buildQuickScanContext("token", tokenState.result!))}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[11px] font-mono text-emerald-300 flex items-center justify-center space-x-1 transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Analyze with AI</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

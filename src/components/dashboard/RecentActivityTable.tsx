@@ -12,13 +12,15 @@ import {
   Filter,
 } from "lucide-react";
 import { SAMPLE_RECENT_ACTIVITIES } from "@/lib/constants";
+import { useRecentActivities } from "@/lib/activity-store";
 import { getRiskColor, formatAddress } from "@/lib/utils";
 
 export function RecentActivityTable() {
   const [filterType, setFilterType] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+  const { activities, liveCount } = useRecentActivities();
 
-  const filtered = SAMPLE_RECENT_ACTIVITIES.filter((item) => {
+  const filtered = activities.filter((item) => {
     const matchesFilter =
       filterType === "ALL" ||
       (filterType === "WALLET" && item.scanType === "Wallet Scanner") ||
@@ -44,9 +46,15 @@ export function RecentActivityTable() {
           <div>
             <div className="flex items-center space-x-2">
               <h3 className="text-base font-bold text-slate-100">Recent Security Activity</h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                Sample Data
-              </span>
+              {liveCount > 0 ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold">
+                  {liveCount} Live Scan{liveCount === 1 ? "" : "s"}
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  Sample Data
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-400">
               Audit log of recently analyzed accounts, dApps, and token contracts.
@@ -109,9 +117,16 @@ export function RecentActivityTable() {
                 >
                   {/* Target */}
                   <td className="py-3 font-semibold text-slate-200">
-                    <span className="group-hover:text-cyan-300 transition-colors">
-                      {activity.target}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="group-hover:text-cyan-300 transition-colors">
+                        {activity.target}
+                      </span>
+                      {!activity.isSample && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold shrink-0">
+                          LIVE
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Scan Type */}
@@ -137,7 +152,12 @@ export function RecentActivityTable() {
 
                   {/* Status */}
                   <td className="py-3">
-                    {activity.status === "Verified On-Chain" ? (
+                    {activity.riskLevel === "UNKNOWN" || activity.status === "Inconclusive" ? (
+                      <span className="inline-flex items-center space-x-1 text-amber-400 text-[11px]">
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Inconclusive</span>
+                      </span>
+                    ) : activity.status === "Verified On-Chain" ? (
                       <span className="inline-flex items-center space-x-1 text-emerald-400 text-[11px]">
                         <ShieldCheck className="w-3.5 h-3.5" />
                         <span>Verified On-Chain</span>
@@ -185,7 +205,9 @@ export function RecentActivityTable() {
 
       <div className="pt-2 text-right">
         <span className="text-[10px] font-mono text-slate-400">
-          * Activity entries above are demonstration samples for UI testing.
+          {liveCount > 0
+            ? `* Showing ${liveCount} live scan record${liveCount === 1 ? "" : "s"} and baseline demonstration samples.`
+            : "* Activity entries above are demonstration samples for UI testing."}
         </span>
       </div>
     </div>

@@ -5,6 +5,10 @@ import {
   AnalystApiResponse,
   StructuredSecurityReport,
 } from "@/types/ai-analyst";
+import {
+  isAskingAboutPrivateKey,
+  redactSecrets,
+} from "@/lib/validators";
 
 const SYSTEM_INSTRUCTION = `
 You are the TRUSTGUARD AI Senior Web3 Cybersecurity Analyst for the NEAR Hackathon 2026.
@@ -33,6 +37,56 @@ function generateDeterministicAnalysis(
   language: AnalystLanguage
 ): AnalystApiResponse {
   const now = new Date().toISOString();
+
+  // Critical secret protection check: if user asks about or presents private keys/seed phrases
+  if (isAskingAboutPrivateKey(userQuestion)) {
+    if (language === "hi") {
+      return {
+        response: `### ⚠️ अति महत्वपूर्ण सुरक्षा चेतावनी: अपनी प्राइवेट की या सीड फ्रेज कभी शेयर न करें! 🛡️
+
+**TrustGuard AI सख्त जीरो-कस्टडी (Zero Key Custody) सिद्धांत पर काम करता है।**
+हम या कोई भी वास्तविक Web3 प्रोटोकॉल/सपोर्ट एजेंट आपसे कभी भी आपकी प्राइवेट की या 12/24 शब्दों का रिकवरी सीड फ्रेज **नहीं मांगता**।
+
+#### मुख्य सुरक्षा नियम:
+1. **कभी किसी को न दें:** जिसके पास आपकी प्राइवेट की है, वह आपके वॉलेट की सभी संपत्तियों को तुरंत और स्थायी रूप से निकाल सकता है।
+2. **AI चैट में न डालें:** किसी भी AI चैट, सर्च इंजन, ऑनलाइन फॉर्म या डिस्कॉर्ड/टेलीग्राम सपोर्ट को अपनी सीक्रेट की कभी न भेजें।
+3. **यदि आपने गलती से की शेयर कर दी है:** तो उस वॉलेट को तुरंत असुरक्षित (Compromised) मानें। एक नया फ्रेश वॉलेट बनाएं और बचे हुए फंड्स तुरंत ट्रांसफर करें।
+4. **TrustGuard कैसे काम करता है:** TrustGuard केवल सार्वजनिक पतों (Public Addresses) और पब्लिक ब्लॉकचेन स्टेट का विश्लेषण करता है। किसी प्राइवेट क्रेडेंशियल की आवश्यकता नहीं है।`,
+        engineUsed: "autonomous-local-heuristics",
+        disclaimer: "TrustGuard AI Deterministic Security Advisor. Never share private keys or seed phrases.",
+      };
+    } else if (language === "hinglish") {
+      return {
+        response: `### ⚠️ CRITICAL SECURITY WARNING: Private Key Ya Seed Phrase Kabhi Share Na Karein! 🛡️
+
+**TrustGuard AI strict client-side zero-knowledge aur zero key custody rules par kaam karta hai.**
+Hum ya koi bhi genuine dApp/admin aapse aapki private key ya 12/24-word recovery phrase **kabhi nahi maangte**.
+
+#### Zaroori Security Rules:
+1. **Permanent Fund Loss Ka Khatra:** Jiske paas aapki private key hai, uska aapke saare crypto assets par direct aur irreversible control hota hai.
+2. **AI Prompts Me Paste Na Karein:** Kisi bhi AI chatbot, support ticket ya website par private key enter karna high-risk vulnerability hai.
+3. **Compromised Wallet Action:** Agar aapne galti se apni key share ki hai, to wallet ko immediately compromised samjhein, fresh wallet banayein aur assets move karein.
+4. **Public Verification:** TrustGuard sirf public wallet addresses aur smart contract bytecode ko scan karta hai—private keys ki zero zaroorat hoti hai.`,
+        engineUsed: "autonomous-local-heuristics",
+        disclaimer: "TrustGuard AI Deterministic Security Advisor. Never share private keys or seed phrases.",
+      };
+    }
+
+    return {
+      response: `### ⚠️ CRITICAL SECURITY WARNING: NEVER SHARE YOUR PRIVATE KEYS OR SEED PHRASES! 🛡️
+
+**TrustGuard AI operates with strict client-side secret protection and zero key custody.**
+TrustGuard, authentic dApps, and legitimate support personnel will **NEVER** request, inspect, or store your private key or 12/24-word recovery phrase.
+
+#### Key Security Principles:
+1. **Irreversible Loss:** Anyone who obtains your private key or recovery seed phrase has absolute, permanent control over your wallet and assets.
+2. **Zero Custody Policy:** Never paste private keys or seed phrases into AI prompts, search bars, customer support forms, Discord/Telegram DMs, or unverified websites.
+3. **If You Shared Your Key:** Treat the wallet as compromised immediately. Generate a new wallet on an isolated, secure device and transfer all remaining assets immediately.
+4. **How TrustGuard Audits Safety:** TrustGuard inspects public addresses, on-chain bytecode, DEX liquidity simulation, and decentralized threat feeds—**no private keys are ever needed.**`,
+      engineUsed: "autonomous-local-heuristics",
+      disclaimer: "TrustGuard AI Deterministic Security Advisor. Never share private keys or seed phrases.",
+    };
+  }
 
   // If no specific scan context was passed, answer general Web3 security queries
   if (!context) {
@@ -123,10 +177,15 @@ function generateDeterministicAnalysis(
   // Generate language-specific narrative
   let narrative = "";
 
+  const scoreDisplay =
+    context.riskLevel === "UNKNOWN"
+      ? "INCONCLUSIVE (TELEMETRY TIMEOUT)"
+      : `${context.riskScore}/100`;
+
   if (language === "hi") {
     narrative = `### AI सुरक्षा विश्लेषण रिपोर्ट: ${context.target} 🔍
 
-**जोखिम स्तर:** **${context.riskLevel}** (स्कोर: **${context.riskScore}/100**)  
+**जोखिम स्तर:** **${context.riskLevel === "UNKNOWN" ? "अस्पष्ट (INCONCLUSIVE / TIMEOUT)" : context.riskLevel}** (स्कोर: **${scoreDisplay}**)  
 **स्कैन प्रकार:** ${context.scanType === "wallet" ? "वॉलेट सुरक्षा" : context.scanType === "token" ? "टोकन व स्मार्ट कॉन्ट्रैक्ट" : "वेबसाइट / dApp"}
 
 #### मुख्य निष्कर्ष (Findings):
@@ -146,7 +205,7 @@ ${recommendedActions.map((a) => `1. ${a}`).join("\n")}
   } else if (language === "hinglish") {
     narrative = `### AI Security Analyst Report: ${context.target} 🔍
 
-**Risk Level:** **${context.riskLevel}** (Score: **${context.riskScore}/100**)  
+**Risk Level:** **${context.riskLevel === "UNKNOWN" ? "INCONCLUSIVE (TELEMETRY TIMEOUT)" : context.riskLevel}** (Score: **${scoreDisplay}**)  
 **Category:** ${context.scanType === "wallet" ? "EVM Wallet" : context.scanType === "token" ? "Token Contract" : "Website Domain"}
 
 #### Key Findings & Alerts:
@@ -166,7 +225,7 @@ ${recommendedActions.map((a) => `1. ${a}`).join("\n")}
   } else {
     narrative = `### AI Security Analyst Report: ${context.target} 🔍
 
-**Threat Assessment:** **${context.riskLevel}** (Risk Score: **${context.riskScore}/100**)  
+**Threat Assessment:** **${context.riskLevel === "UNKNOWN" ? "INCONCLUSIVE (TELEMETRY TIMEOUT)" : context.riskLevel}** (Risk Score: **${scoreDisplay}**)  
 **Scan Target Type:** ${context.scanType.toUpperCase()}
 
 #### Key Threat Findings:
@@ -203,24 +262,31 @@ export async function analyzeWithGemini(
   language: AnalystLanguage = "en",
   chatHistory: Array<{ role: "user" | "model"; content: string }> = []
 ): Promise<AnalystApiResponse> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+  // Defensive sanitization: redact any sensitive strings or placeholders before processing
+  const safeUserMessage = redactSecrets(userMessage);
 
   // If no Gemini API key is configured, use local engine
   if (!apiKey) {
-    return generateDeterministicAnalysis(context, userMessage, language);
+    return generateDeterministicAnalysis(context, safeUserMessage, language);
   }
 
   try {
     const ai = new GoogleGenAI({ apiKey });
 
-    // Format context into a strict prompt
-    let prompt = `User Question: "${userMessage}"\nLanguage: "${language}"\n\n`;
+    // Format context into a strict prompt with redacted user message
+    let prompt = `User Question: "${safeUserMessage}"\nLanguage: "${language}"\n\n`;
 
     if (context) {
       prompt += `SCANNER CONTEXT PROVIDED (Strictly stick to this evidence):\n`;
-      prompt += `- Target: ${context.target}\n`;
+      prompt += `- Target: ${redactSecrets(context.target)}\n`;
       prompt += `- Scan Type: ${context.scanType}\n`;
-      prompt += `- Risk Score: ${context.riskScore}/100 (${context.riskLevel})\n`;
+      const formattedPromptScore =
+        context.riskLevel === "UNKNOWN"
+          ? "INCONCLUSIVE (TELEMETRY TIMEOUT)"
+          : `${context.riskScore}/100`;
+      prompt += `- Risk Score: ${formattedPromptScore} (${context.riskLevel})\n`;
       if (context.chain) prompt += `- Blockchain: ${context.chain}\n`;
       if (context.threats && context.threats.length > 0) {
         prompt += `- Detected Threats: ${JSON.stringify(context.threats)}\n`;
@@ -238,7 +304,7 @@ export async function analyzeWithGemini(
     const contents = [
       ...chatHistory.map((h) => ({
         role: h.role,
-        parts: [{ text: h.content }],
+        parts: [{ text: redactSecrets(h.content) }],
       })),
       {
         role: "user" as const,
@@ -258,7 +324,7 @@ export async function analyzeWithGemini(
     const text = modelResponse.text || "No response generated by Gemini model.";
 
     // Generate matching structured report
-    const fallbackData = generateDeterministicAnalysis(context, userMessage, language);
+    const fallbackData = generateDeterministicAnalysis(context, safeUserMessage, language);
 
     return {
       response: text,
@@ -267,7 +333,8 @@ export async function analyzeWithGemini(
       disclaimer: "AI-generated reasoning based on verified scanner telemetry.",
     };
   } catch (err: unknown) {
-    console.warn("Gemini API call failed, falling back to local heuristic engine:", err);
-    return generateDeterministicAnalysis(context, userMessage, language);
+    const safeErrorMsg = err instanceof Error ? err.message : "Unknown AI gateway error";
+    console.warn("Gemini API call failed, falling back to local heuristic engine:", safeErrorMsg);
+    return generateDeterministicAnalysis(context, safeUserMessage, language);
   }
 }

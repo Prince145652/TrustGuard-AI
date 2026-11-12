@@ -23,6 +23,24 @@ export function getRiskLevelFromScore(score: number): RiskLevel {
   return "CRITICAL";
 }
 
+/**
+ * Formats a risk score display string safely, ensuring UNKNOWN / inconclusive states
+ * are never presented as 0/100 or SAFE.
+ */
+export function formatRiskScoreDisplay(score: number, level?: RiskLevel | string): string {
+  if (level === "UNKNOWN") {
+    return "INCONCLUSIVE";
+  }
+  return `${score}/100`;
+}
+
+/**
+ * Checks whether a given risk level represents an inconclusive / unknown state.
+ */
+export function isUnknownRisk(level?: RiskLevel | string): boolean {
+  return level === "UNKNOWN";
+}
+
 export function getRiskColor(level: RiskLevel): {
   text: string;
   bg: string;
@@ -64,6 +82,13 @@ export function getRiskColor(level: RiskLevel): {
         bg: "bg-rose-500/10",
         border: "border-rose-500/30",
         glow: "shadow-[0_0_15px_rgba(244,63,94,0.3)]",
+      };
+    case "UNKNOWN":
+      return {
+        text: "text-amber-400",
+        bg: "bg-amber-500/10",
+        border: "border-amber-500/30",
+        glow: "shadow-[0_0_15px_rgba(245,158,11,0.15)]",
       };
     default:
       return {

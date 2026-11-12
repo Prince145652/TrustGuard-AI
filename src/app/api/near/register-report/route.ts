@@ -30,6 +30,19 @@ export async function POST(req: NextRequest) {
 
     const { target, scanType, riskScore, riskLevel, threats, evidence, indicators } = parsed.data;
 
+    // Rule: If live verification was unavailable, clearly reject anchoring
+    if (riskLevel === "UNKNOWN") {
+      return NextResponse.json(
+        {
+          error: "Live Verification Unavailable",
+          details: [
+            "Cannot anchor unverified report: Live telemetry was inconclusive or unavailable. Inconclusive reports cannot be registered on-chain.",
+          ],
+        },
+        { status: 400 }
+      );
+    }
+
     // 1. Generate Canonical SHA-256 Hash
     const reportHash = generateReportHash({
       target,
