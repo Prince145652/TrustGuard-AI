@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generateReportHash, generateReportId } from "@/lib/near-hashing";
 import { anchorReportOnNear } from "@/lib/near-client";
+import { checkRateLimit, createRateLimitResponse } from "@/lib/rate-limiter";
 
 const registerSchema = z.object({
   target: z.string().trim().min(1, "Target cannot be empty"),
@@ -15,6 +16,11 @@ const registerSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(req, { max: 30, windowMs: 60000 });
+    if (!rateLimit.success) {
+      return createRateLimitResponse(rateLimit.reset);
+    }
+
     const body = await req.json();
     const parsed = registerSchema.safeParse(body);
 
@@ -79,11 +85,11 @@ export async function POST(req: NextRequest) {
       message,
     });
   } catch (err: unknown) {
-    console.error("NEAR Anchoring Error:", err);
+    console.error("NEAR Anchoring Error:", err instanceof Error ? err.stack || err.message : String(err));
     return NextResponse.json(
       {
         error: "NEAR Protocol Anchoring Error",
-        message: err instanceof Error ? err.message : "Failed to anchor report to NEAR Testnet",
+        message: "Failed to anchor report to NEAR Testnet. Please try again later.",
       },
       { status: 500 }
     );

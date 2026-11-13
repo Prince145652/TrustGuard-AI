@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyReportOnNear } from "@/lib/near-client";
+import { checkRateLimit, createRateLimitResponse } from "@/lib/rate-limiter";
 
 const querySchema = z.object({
   hashOrId: z.string().trim().min(2, "Report Hash or Report ID is required"),
@@ -8,6 +9,11 @@ const querySchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(req, { max: 60, windowMs: 60000 });
+    if (!rateLimit.success) {
+      return createRateLimitResponse(rateLimit.reset);
+    }
+
     const { searchParams } = new URL(req.url);
     const hashOrId =
       searchParams.get("hashOrId") ||
@@ -40,11 +46,11 @@ export async function GET(req: NextRequest) {
           : "No registered security report matching this hash or ID was found in the NEAR Protocol ledger."),
     });
   } catch (err: unknown) {
-    console.error("NEAR Verification Error:", err);
+    console.error("NEAR Verification Error:", err instanceof Error ? err.stack || err.message : String(err));
     return NextResponse.json(
       {
         error: "Verification Error",
-        message: err instanceof Error ? err.message : "Failed to query NEAR Testnet state",
+        message: "Failed to query NEAR Testnet state. Please try again later.",
       },
       { status: 500 }
     );
@@ -53,6 +59,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(req, { max: 60, windowMs: 60000 });
+    if (!rateLimit.success) {
+      return createRateLimitResponse(rateLimit.reset);
+    }
+
     const body = await req.json();
     const parsed = querySchema.safeParse(body);
 
@@ -80,11 +91,11 @@ export async function POST(req: NextRequest) {
           : "No registered security report matching this hash or ID was found in the NEAR Protocol ledger."),
     });
   } catch (err: unknown) {
-    console.error("NEAR Verification Error:", err);
+    console.error("NEAR Verification Error:", err instanceof Error ? err.stack || err.message : String(err));
     return NextResponse.json(
       {
         error: "Verification Error",
-        message: err instanceof Error ? err.message : "Failed to query NEAR Testnet state",
+        message: "Failed to query NEAR Testnet state. Please try again later.",
       },
       { status: 500 }
     );

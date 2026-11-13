@@ -663,6 +663,47 @@ describe("TrustGuard AI Step 2: Scanner Integration & Honest NEAR Registry Tests
       }
     });
 
+    it("should ensure recordScanActivity never assigns Verified On-Chain even if caller passes nearTxHash", () => {
+      setupMockWindow();
+      try {
+        const target = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+        const dummyTxHash = "G52k1qHn8m7A3tLwP9v4J8zD2K1mN4xQ8rY7bT6cV5wX";
+
+        // Call recordScanActivity on new target with nearTxHash supplied
+        const newRecord = recordScanActivity({
+          target,
+          scanType: "token",
+          riskScore: 20,
+          riskLevel: "SAFE",
+          nearTxHash: dummyTxHash,
+        });
+
+        assert.equal(newRecord.status, "Safe", "recordScanActivity must remain off-chain");
+        assert.equal(newRecord.nearTxHash, undefined, "recordScanActivity must not bind transaction hash");
+        assert.notEqual(newRecord.status, "Verified On-Chain");
+
+        // Re-scan unverified target with nearTxHash supplied
+        const updatedRecord = recordScanActivity({
+          target,
+          scanType: "token",
+          riskScore: 75,
+          riskLevel: "HIGH",
+          nearTxHash: dummyTxHash,
+        });
+
+        assert.equal(updatedRecord.status, "High Risk", "re-scan must remain off-chain");
+        assert.equal(updatedRecord.nearTxHash, undefined);
+        assert.notEqual(updatedRecord.status, "Verified On-Chain");
+
+        const stored = getLiveActivities();
+        assert.equal(stored.length, 1);
+        assert.equal(stored[0].status, "High Risk");
+        assert.equal(stored[0].nearTxHash, undefined);
+      } finally {
+        restoreWindow();
+      }
+    });
+
     it("should assign Verified On-Chain when genuine nearTxHash is confirmed", () => {
       setupMockWindow();
       try {

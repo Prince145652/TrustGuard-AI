@@ -5,6 +5,7 @@ import { looksLikeSecret } from "@/lib/validators";
 import { checkThreatIntelligence } from "@/lib/threat-intel";
 import { fetchOnChainWalletData, EVM_CHAINS } from "@/lib/evm-provider";
 import { EvmRiskLevel, EvmWalletScanResult } from "@/types/evm-security";
+import { checkRateLimit, createRateLimitResponse } from "@/lib/rate-limiter";
 
 const scanRequestSchema = z.object({
   address: z
@@ -21,6 +22,11 @@ const scanRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(req, { max: 30, windowMs: 60000 });
+    if (!rateLimit.success) {
+      return createRateLimitResponse(rateLimit.reset);
+    }
+
     const body = await req.json();
     const parseResult = scanRequestSchema.safeParse(body);
 
@@ -209,11 +215,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(responsePayload);
   } catch (err: unknown) {
-    console.error("EVM Scanner Error:", err);
+    console.error("EVM Scanner Error:", err instanceof Error ? err.stack || err.message : String(err));
     return NextResponse.json(
       {
         error: "Internal security analysis error",
-        message: err instanceof Error ? err.message : "Unexpected error during on-chain scan",
+        message: "An unexpected error occurred during on-chain wallet scan. Please try again later.",
       },
       { status: 500 }
     );

@@ -12,7 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import { SAMPLE_RECENT_ACTIVITIES } from "@/lib/constants";
-import { useRecentActivities } from "@/lib/activity-store";
+import { useRecentActivities, getActivityExplorerUrl } from "@/lib/activity-store";
 import { getRiskColor, formatAddress } from "@/lib/utils";
 
 export function RecentActivityTable() {
@@ -182,19 +182,50 @@ export function RecentActivityTable() {
 
                   {/* Blockchain Hash */}
                   <td className="py-3 text-right">
-                    {activity.nearTxHash ? (
-                      <a
-                        href={`https://testnet.nearblocks.io/txns/${activity.nearTxHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 text-[11px] hover:underline"
-                      >
-                        <span>{formatAddress(activity.nearTxHash, 10)}</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      <span className="text-slate-400 text-[11px]">Off-Chain</span>
-                    )}
+                    {(() => {
+                      const explorerUrl = getActivityExplorerUrl(activity);
+                      if (explorerUrl) {
+                        return (
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 text-[11px] hover:underline"
+                            title="View verified transaction on NEAR Testnet explorer"
+                          >
+                            <span>{formatAddress(activity.nearTxHash!, 10)}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        );
+                      }
+                      if (activity.isSample && activity.nearTxHash) {
+                        return (
+                          <span
+                            className="inline-flex items-center space-x-1.5 text-slate-400 text-[11px]"
+                            title="Simulated sample transaction hash for UI demonstration"
+                          >
+                            <span className="font-mono">{formatAddress(activity.nearTxHash, 10)}</span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/50">
+                              Sample
+                            </span>
+                          </span>
+                        );
+                      }
+                      if (activity.nearTxHash) {
+                        return (
+                          <span
+                            className="inline-flex items-center space-x-1.5 text-amber-400/80 text-[11px]"
+                            title="Pending blockchain verification"
+                          >
+                            <span className="font-mono">{formatAddress(activity.nearTxHash, 10)}</span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              Pending
+                            </span>
+                          </span>
+                        );
+                      }
+                      return <span className="text-slate-400 text-[11px]">Off-Chain</span>;
+                    })()}
                   </td>
                 </tr>
               );

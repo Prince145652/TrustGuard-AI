@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { looksLikeSecret } from "@/lib/validators";
 import { analyzeWithGemini } from "@/lib/gemini-analyst";
+import { checkRateLimit, createRateLimitResponse } from "@/lib/rate-limiter";
 
 const nearVerificationRecordSchema = z.object({
   reportId: z.string(),
@@ -81,6 +82,11 @@ const analystRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(req, { max: 40, windowMs: 60000 });
+    if (!rateLimit.success) {
+      return createRateLimitResponse(rateLimit.reset);
+    }
+
     const body = await req.json();
     const parsed = analystRequestSchema.safeParse(body);
 
@@ -113,11 +119,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err: unknown) {
-    console.error("AI Analyst Error:", err);
+    console.error("AI Analyst Error:", err instanceof Error ? err.stack || err.message : String(err));
     return NextResponse.json(
       {
         error: "AI Analyst Error",
-        message: err instanceof Error ? err.message : "Unexpected error during AI analysis",
+        message: "An unexpected error occurred during AI analysis. Please try again later.",
       },
       { status: 500 }
     );

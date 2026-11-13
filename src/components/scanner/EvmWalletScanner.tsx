@@ -46,21 +46,39 @@ export function EvmWalletScanner({
   const [scanStage, setScanStage] = useState("");
   const [scanResult, setScanResult] = useState<EvmWalletScanResult | null>(null);
 
+  // Synchronize prefilled target & chain during render without triggering cascading renders
+  const [prevTarget, setPrevTarget] = useState<string | undefined>(initialTarget);
+  const [prevChain, setPrevChain] = useState<EvmChainId | undefined>(initialChain);
+
+  if (initialTarget !== undefined && initialTarget !== prevTarget) {
+    setPrevTarget(initialTarget);
+    setWalletAddress(initialTarget);
+    setScanResult(null);
+    setValidationError(null);
+    if (initialChain) {
+      setSelectedChain(initialChain);
+      setPreselectedChainBadge(initialChain);
+    } else {
+      setSelectedChain("ethereum");
+      setPreselectedChainBadge(null);
+    }
+  } else if (initialTarget === undefined && prevTarget !== undefined) {
+    setPrevTarget(undefined);
+  }
+
+  if (initialChain !== undefined && initialChain !== prevChain) {
+    setPrevChain(initialChain);
+    setSelectedChain(initialChain);
+    setPreselectedChainBadge(initialChain);
+  } else if (initialChain === undefined && prevChain !== undefined) {
+    setPrevChain(undefined);
+  }
+
   useEffect(() => {
     if (initialTarget !== undefined) {
-      setWalletAddress(initialTarget);
-      setScanResult(null);
-      setValidationError(null);
-      if (initialChain) {
-        setSelectedChain(initialChain);
-        setPreselectedChainBadge(initialChain);
-      } else {
-        setSelectedChain("ethereum");
-        setPreselectedChainBadge(null);
-      }
       onClearPrefill?.();
     }
-  }, [initialTarget, initialChain, onClearPrefill]);
+  }, [initialTarget, onClearPrefill]);
 
   // Test presets
   const presets = [
@@ -424,7 +442,7 @@ export function EvmWalletScanner({
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="space-y-1.5">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[11px] font-mono uppercase text-slate-400">
                           Audited Address ({scanResult.chainName}):
                         </span>
@@ -432,10 +450,10 @@ export function EvmWalletScanner({
                           href={`${EVM_CHAINS[scanResult.chain].explorerUrl}/address/${scanResult.address}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs font-mono font-bold text-slate-100 hover:text-cyan-300 inline-flex items-center space-x-1"
+                          className="text-xs font-mono font-bold text-slate-100 hover:text-cyan-300 inline-flex items-center space-x-1 break-all"
                         >
                           <span>{scanResult.address}</span>
-                          <ExternalLink className="w-3 h-3 text-cyan-400" />
+                          <ExternalLink className="w-3 h-3 text-cyan-400 shrink-0" />
                         </a>
                       </div>
 

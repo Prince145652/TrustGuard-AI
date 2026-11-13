@@ -9,6 +9,7 @@ import {
   WebsiteRiskLevel,
   WebsiteScanResult,
 } from "@/types/website-security";
+import { checkRateLimit, createRateLimitResponse } from "@/lib/rate-limiter";
 
 const requestSchema = z.object({
   url: z.string().trim().min(1, "URL cannot be empty"),
@@ -16,6 +17,11 @@ const requestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(req, { max: 30, windowMs: 60000 });
+    if (!rateLimit.success) {
+      return createRateLimitResponse(rateLimit.reset);
+    }
+
     const body = await req.json();
     const parsedInput = requestSchema.safeParse(body);
 
@@ -153,11 +159,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(responsePayload);
   } catch (err: unknown) {
-    console.error("Website Scanner Error:", err);
+    console.error("Website Scanner Error:", err instanceof Error ? err.stack || err.message : String(err));
     return NextResponse.json(
       {
         error: "Internal website analysis error",
-        message: err instanceof Error ? err.message : "Unexpected error during domain scan",
+        message: "An unexpected error occurred during website analysis. Please try again later.",
       },
       { status: 500 }
     );

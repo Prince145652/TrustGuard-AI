@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RecentSecurityActivity, RiskLevel } from "@/types/security";
-import { SAMPLE_RECENT_ACTIVITIES } from "@/lib/constants";
+import { RecentSecurityActivity, RiskLevel, SecurityStats } from "@/types/security";
+import { SAMPLE_RECENT_ACTIVITIES, SAMPLE_SECURITY_STATS } from "@/lib/constants";
 import { getRiskLevelFromScore } from "@/lib/utils";
 import { looksLikeSecret, redactSecrets } from "@/lib/validators";
 
@@ -127,15 +127,16 @@ export function recordScanActivity(params: RecordScanParams): RecentSecurityActi
 
   if (existingIndex >= 0) {
     const existing = existingList[existingIndex];
-    // Rule 3: Preserve existing confirmed tx hash if not overridden with a new one
-    const confirmedTxHash = params.nearTxHash || existing.nearTxHash;
+    // Rule: Only preserve Verified On-Chain if ALREADY verified on-chain via recordNearRegistration
+    const isAlreadyVerified = existing.status === "Verified On-Chain" && Boolean(existing.nearTxHash);
+    const confirmedTxHash = isAlreadyVerified ? existing.nearTxHash : undefined;
 
     // Rule 4: UNKNOWN must always remain Inconclusive, regardless of transaction hash
-    // Rule 1 & 3: Only retain Verified On-Chain if genuine tx hash exists; otherwise use off-chain status
+    // Requirement 1 & 2: recordScanActivity can NEVER assign or promote to "Verified On-Chain"
     const status: RecentSecurityActivity["status"] =
       normalizedRiskLevel === "UNKNOWN"
         ? "Inconclusive"
-        : confirmedTxHash && (existing.status === "Verified On-Chain" || params.nearTxHash)
+        : isAlreadyVerified
         ? "Verified On-Chain"
         : defaultStatus;
 
@@ -153,12 +154,11 @@ export function recordScanActivity(params: RecordScanParams): RecentSecurityActi
     const nextList = [updatedActivity, ...remaining].slice(0, MAX_LIVE_ACTIVITIES);
     saveLiveActivities(nextList);
   } else {
-    const confirmedTxHash = params.nearTxHash || undefined;
+    // Requirement 1 & 2: Normal scanner activity is strictly off-chain.
+    // recordScanActivity() can NEVER assign "Verified On-Chain", even if nearTxHash is supplied.
     const status: RecentSecurityActivity["status"] =
       normalizedRiskLevel === "UNKNOWN"
         ? "Inconclusive"
-        : confirmedTxHash
-        ? "Verified On-Chain"
         : defaultStatus;
 
     updatedActivity = {
@@ -168,7 +168,7 @@ export function recordScanActivity(params: RecordScanParams): RecentSecurityActi
       riskLevel: normalizedRiskLevel,
       date: getFormattedNow(),
       status,
-      nearTxHash: confirmedTxHash,
+      nearTxHash: undefined,
       isSample: false,
     };
     const nextList = [updatedActivity, ...existingList].slice(0, MAX_LIVE_ACTIVITIES);
@@ -303,6 +303,126 @@ export function mergeAndDeduplicateActivities(
 }
 
 /**
+ * Checks whether an activity record possesses explicit verified on-chain provenance.
+ * True strictly when:
+ * 1. The activity is genuine live data (isSample === false).
+ * 2. The activity has explicit on-chain verified status (status === "Verified On-Chain").
+ * 3. A genuine non-empty NEAR transaction hash is present.
+ */
+export function hasVerifiedOnChainProvenance(
+  activity: Pick<RecentSecurityActivity, "isSample" | "status" | "nearTxHash">
+): boolean {
+  return (
+    activity.isSample === false &&
+    activity.status === "Verified On-Chain" &&
+    typeof activity.nearTxHash === "string" &&
+    activity.nearTxHash.trim().length > 0
+  );
+}
+
+/**
+ * Resolves the NearBlocks testnet explorer URL ONLY for activities with explicit verified on-chain provenance.
+ * Returns null for sample data, unverified off-chain scans, or missing hashes, preventing 404 explorer errors.
+ */
+export function getActivityExplorerUrl(
+  activity: Pick<RecentSecurityActivity, "isSample" | "status" | "nearTxHash">
+): string | null {
+  if (!hasVerifiedOnChainProvenance(activity)) {
+    return null;
+  }
+  return `https://testnet.nearblocks.io/txns/${activity.nearTxHash!.trim()}`;
+}
+
+export interface DynamicSecurityStats {
+  // Provenance indicator: true when showing simulated benchmark data, false when displaying real live session telemetry
+  isSampleData: boolean;
+  // Displayed metrics for the active view
+  totalScans: number;
+  threatsDetected: number;
+  protectedWallets: number;
+  securityScore: number;
+  // Pure live session telemetry (strictly non-sample provenance)
+  liveCount: number;
+  liveThreats: number;
+  liveWallets: number;
+  liveSafeWallets: number;
+  liveVerified: number;
+  sessionCleanRate: number | null;
+  // Sample platform baseline retained separately for demo reference only (never blended into live telemetry)
+  sampleBaseline: SecurityStats;
+}
+
+/**
+ * Computes dynamic ecosystem telemetry from live session activities without conflating
+ * sample baseline numbers into real live metrics.
+ * Preserves platform-wide securityScore semantics while providing session-specific metrics.
+ */
+export function computeSecurityStats(
+  liveActivities: RecentSecurityActivity[] = [],
+  baseline: SecurityStats = SAMPLE_SECURITY_STATS,
+  options?: { viewMode?: "live" | "sample" }
+): DynamicSecurityStats {
+  const validLive = Array.isArray(liveActivities)
+    ? liveActivities.filter((a) => a.isSample === false)
+    : [];
+
+  const liveCount = validLive.length;
+  const liveThreats = validLive.filter(
+    (a) => a.riskLevel === "CRITICAL" || a.riskLevel === "HIGH"
+  ).length;
+  const liveWallets = validLive.filter(
+    (a) => a.scanType === "Wallet Scanner"
+  ).length;
+  const liveSafeWallets = validLive.filter(
+    (a) =>
+      a.scanType === "Wallet Scanner" &&
+      a.riskLevel !== "CRITICAL" &&
+      a.riskLevel !== "HIGH"
+  ).length;
+  const liveVerified = validLive.filter((a) => hasVerifiedOnChainProvenance(a)).length;
+
+  const liveClean = liveCount - liveThreats;
+  const sessionCleanRate = liveCount > 0 ? Number(((liveClean / liveCount) * 100).toFixed(1)) : null;
+
+  const forceSampleView = options?.viewMode === "sample";
+
+  if (liveCount > 0 && !forceSampleView) {
+    // Truth-in-Advertising: Report pure live session telemetry for counts.
+    // Preserve platform-wide security score semantics from baseline while recording sessionCleanRate.
+    return {
+      isSampleData: false,
+      totalScans: liveCount,
+      threatsDetected: liveThreats,
+      protectedWallets: liveSafeWallets,
+      securityScore: baseline.securityScore,
+      liveCount,
+      liveThreats,
+      liveWallets,
+      liveSafeWallets,
+      liveVerified,
+      sessionCleanRate,
+      sampleBaseline: baseline,
+    };
+  }
+
+  // Baseline demonstration mode: metrics are explicitly marked as simulated sample data
+  return {
+    isSampleData: true,
+    totalScans: baseline.totalScans,
+    threatsDetected: baseline.threatsDetected,
+    protectedWallets: baseline.protectedWallets,
+    securityScore: baseline.securityScore,
+    liveCount,
+    liveThreats,
+    liveWallets,
+    liveSafeWallets,
+    liveVerified,
+    sessionCleanRate,
+    sampleBaseline: baseline,
+  };
+}
+
+/**
  * React hook to subscribe to live activities with SSR hydration safety.
  */
 export function useRecentActivities() {
@@ -341,6 +461,7 @@ export function useRecentActivities() {
 
   return {
     activities,
+    liveActivities: isHydrated ? liveActivities : [],
     liveCount: isHydrated ? liveActivities.length : 0,
     isHydrated,
     clearActivities: clearLiveActivities,

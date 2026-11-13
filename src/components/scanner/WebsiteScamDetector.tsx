@@ -40,11 +40,20 @@ export function WebsiteScamDetector({
   const [scanStage, setScanStage] = useState("");
   const [scanResult, setScanResult] = useState<WebsiteScanResult | null>(null);
 
+  // Synchronize prefilled target during render without triggering cascading renders
+  const [prevTarget, setPrevTarget] = useState<string | undefined>(initialTarget);
+
+  if (initialTarget !== undefined && initialTarget !== prevTarget) {
+    setPrevTarget(initialTarget);
+    setUrlInput(initialTarget);
+    setScanResult(null);
+    setValidationError(null);
+  } else if (initialTarget === undefined && prevTarget !== undefined) {
+    setPrevTarget(undefined);
+  }
+
   useEffect(() => {
     if (initialTarget !== undefined) {
-      setUrlInput(initialTarget);
-      setScanResult(null);
-      setValidationError(null);
       onClearPrefill?.();
     }
   }, [initialTarget, onClearPrefill]);
@@ -377,7 +386,7 @@ export function WebsiteScamDetector({
                           )}
                         </span>
 
-                        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px] break-all">
                           Target: {scanResult.normalizedUrl}
                         </span>
 

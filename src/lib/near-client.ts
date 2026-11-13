@@ -69,47 +69,109 @@ async function callContractMethod(method: string, args: Record<string, unknown>)
 
 /**
  * Loads the authorized server-side NEAR account for signing.
- * Reads credentials strictly from ~/.near-credentials/testnet on the server.
- * Never exposes or logs the private key.
+ * Sources credentials in priority order:
+ * 1. process.env.NEAR_SIGNER_PRIVATE_KEY (raw ed25519:... string)
+ * 2. process.env.NEAR_CREDENTIALS_JSON (raw JSON string or base64 encoded JSON)
+ * 3. Filesystem fallback: ~/.near-credentials/testnet/${accountId}.json
+ * Never logs or exposes the private key.
+ * Safely validates malformed inputs.
  */
-function getSignerAccount(): Account {
+export function getSignerAccount(): Account {
   const accountId = NEAR_CONFIG.contractId;
-  const credPath = path.join(
-    os.homedir(),
-    ".near-credentials",
-    "testnet",
-    `${accountId}.json`
-  );
+  let rawPrivateKey: string | undefined;
 
-  if (!fs.existsSync(credPath)) {
-    throw new Error(
-      `NEAR Testnet signer credential for "${accountId}" not found in ~/.near-credentials/testnet. ` +
-        `Live anchoring cannot be signed.`
-    );
+  // 1. Direct environment variable: NEAR_SIGNER_PRIVATE_KEY
+  if (process.env.NEAR_SIGNER_PRIVATE_KEY) {
+    const candidate = process.env.NEAR_SIGNER_PRIVATE_KEY.trim();
+    if (candidate) {
+      rawPrivateKey = candidate;
+    }
   }
 
-  let cred: { private_key?: string; secret_key?: string };
+  // 2. Structured environment variable: NEAR_CREDENTIALS_JSON
+  if (!rawPrivateKey && process.env.NEAR_CREDENTIALS_JSON) {
+    const raw = process.env.NEAR_CREDENTIALS_JSON.trim();
+    if (raw) {
+      let parsed: { private_key?: string; secret_key?: string; account_id?: string } | null = null;
+      try {
+        if (raw.startsWith("{")) {
+          parsed = JSON.parse(raw);
+        } else {
+          // Attempt base64 decode if not plain JSON
+          const decoded = Buffer.from(raw, "base64").toString("utf8");
+          parsed = JSON.parse(decoded);
+        }
+      } catch {
+        throw new Error(
+          `Invalid NEAR_CREDENTIALS_JSON configuration for "${accountId}": malformed JSON format.`
+        );
+      }
+
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error(
+          `Invalid NEAR_CREDENTIALS_JSON configuration for "${accountId}": expected JSON object.`
+        );
+      }
+
+      const keyFromEnvJson = parsed.private_key || parsed.secret_key;
+      if (!keyFromEnvJson || typeof keyFromEnvJson !== "string") {
+        throw new Error(
+          `Signing private key is missing or invalid in NEAR_CREDENTIALS_JSON for "${accountId}".`
+        );
+      }
+      rawPrivateKey = keyFromEnvJson.trim();
+    }
+  }
+
+  // 3. Filesystem fallback (~/.near-credentials/testnet/${accountId}.json)
+  if (!rawPrivateKey) {
+    const credPath = path.join(
+      os.homedir(),
+      ".near-credentials",
+      "testnet",
+      `${accountId}.json`
+    );
+
+    if (!fs.existsSync(credPath)) {
+      throw new Error(
+        `NEAR Testnet signer credential for "${accountId}" not found. ` +
+        `Please set NEAR_SIGNER_PRIVATE_KEY or NEAR_CREDENTIALS_JSON environment variable, ` +
+        `or configure credentials in ~/.near-credentials/testnet.`
+      );
+    }
+
+    let cred: { private_key?: string; secret_key?: string };
+    try {
+      cred = JSON.parse(fs.readFileSync(credPath, "utf8"));
+    } catch (err: unknown) {
+      throw new Error(
+        `Failed to parse NEAR credential file for "${accountId}": ${
+          err instanceof Error ? err.message : "Malformed credential file"
+        }`
+      );
+    }
+
+    const keyFromFile = cred.private_key || cred.secret_key;
+    if (!keyFromFile || typeof keyFromFile !== "string") {
+      throw new Error(
+        `Signing private key is missing or invalid in credential file for "${accountId}".`
+      );
+    }
+    rawPrivateKey = keyFromFile.trim();
+  }
+
+  // Validate and parse the private key safely
+  let keyPair: KeyPair;
   try {
-    cred = JSON.parse(fs.readFileSync(credPath, "utf8"));
-  } catch (err: unknown) {
+    keyPair = KeyPair.fromString(
+      rawPrivateKey as Parameters<typeof KeyPair.fromString>[0]
+    );
+  } catch {
     throw new Error(
-      `Failed to parse NEAR credential file for "${accountId}": ${
-        err instanceof Error ? err.message : String(err)
-      }`
+      `Invalid NEAR signer private key for "${accountId}": malformed key format.`
     );
   }
 
-  const privateKey = cred.private_key || cred.secret_key;
-  if (!privateKey || typeof privateKey !== "string") {
-    throw new Error(
-      `Signing private key is missing or invalid in credential file for "${accountId}".`
-    );
-  }
-
-  // The KeyPair is kept in memory within this function scope and never exposed
-  const keyPair = KeyPair.fromString(
-    privateKey as Parameters<typeof KeyPair.fromString>[0]
-  );
   const signer = new KeyPairSigner(keyPair);
   const provider = getProvider();
 
